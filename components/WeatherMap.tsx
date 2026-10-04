@@ -20,7 +20,7 @@ import { Style, Stroke, Fill, Circle as CircleStyle, Text } from "ol/style";
 import Feature from "ol/Feature";
 import { Point, LineString, Polygon } from "ol/geom";
 import { circular } from "ol/geom/Polygon";
-import { defaults as controls, ScaleLine } from "ol/control";
+import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
 import { imagery } from "@/lib/imagery";
 import { unwrapTrack } from "@/lib/track-geometry.mjs";
@@ -97,9 +97,7 @@ export default function WeatherMap(p: {
         maxZoom: 10,
         multiWorld: true,
       }),
-      controls: controls({ zoom: false, rotate: false }).extend([
-        new ScaleLine(),
-      ]),
+      controls: controls({ zoom: false, rotate: false }),
     });
     map.current = m;
     m.on("singleclick", (e) => {

@@ -50,7 +50,7 @@ export default function Observatory() {
     [hours, setHours] = useState(3),
     [step, setStep] = useState(20),
     [panel, setPanel] = useState(
-      typeof window !== "undefined" && window.innerWidth > 720,
+      typeof window !== "undefined" && window.innerWidth > 1024,
     ),
     [info, setInfo] = useState(false),
     [models, setModels] = useState<any[]>([]),
@@ -58,6 +58,11 @@ export default function Observatory() {
     [modelStatus, setModelStatus] = useState("尚未載入"),
     [jmaStatus, setJmaStatus] = useState("讀取中"),
     [region, setRegion] = useState(0),
+    [historyYear, setHistoryYear] = useState(new Date().getUTCFullYear()),
+    [historyStorms, setHistoryStorms] = useState<any[]>([]),
+    [historyId, setHistoryId] = useState(""),
+    [historyLoading, setHistoryLoading] = useState(false),
+    [historyError, setHistoryError] = useState(""),
     [bounds, setBounds] = useState([120, 15, 155, 35]),
     [areaError, setAreaError] = useState("");
   const api = useRef<MapAPI | null>(null),
@@ -124,6 +129,52 @@ export default function Observatory() {
   const age = latest
     ? Math.floor((Date.now() - new Date(latest).getTime()) / 60000)
     : 0;
+  const selectedHistory = historyStorms.find((storm) => storm.id === historyId);
+  const historyModel = selectedHistory
+    ? {
+        id: "jma-history",
+        label: `JMA 歷史最佳路徑 · ${selectedHistory.name}`,
+        color: "#ffd16a",
+        source: "https://www.jma.go.jp/jma/jma-eng/jma-center/rsmc-hp-pub-eg/besttrack.html",
+        run: selectedHistory.points[0]?.time,
+        tracks: [
+          {
+            ...selectedHistory,
+            member: "JMA Best Track",
+            points: selectedHistory.points.map((point: any) => ({
+              ...point,
+              lead: Math.round(
+                (new Date(point.time).getTime() - new Date(selectedHistory.points[0].time).getTime()) / 3600000,
+              ),
+              radii: [],
+            })),
+          },
+        ],
+      }
+    : null;
+  const displayedModels = [
+    ...models
+      .filter((m) => selected.includes(m.id))
+      .map((m) => ({ ...m, color: ({ ifs: "#61d8ee", aifs: "#ba9dff", gefs: "#f3c775", aigefs: "#e790bd", cmce: "#7bde9a", fens: "#9db1ec", wnv3: "#ff91ab", google: "#8aafff", fnv3: "#ffbe88", gfs: "#40d8ff", ecmwf: "#ffad42" } as Record<string, string>)[m.id] })),
+    ...(historyModel ? [historyModel] : []),
+  ];
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError("");
+    setHistoryId("");
+    try {
+      const response = await fetch(`/api/history?year=${historyYear}`);
+      const data: any = await response.json();
+      if (!response.ok) throw new Error(data.error || "歷史路徑載入失敗");
+      setHistoryStorms(data.storms);
+      if (!data.storms.length) setHistoryError("該年份沒有可顯示的路徑");
+    } catch (error) {
+      setHistoryStorms([]);
+      setHistoryError(error instanceof Error ? error.message : "歷史路徑載入失敗");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
   return (
     <main className="observatory">
       <header className="topbar">
@@ -179,7 +230,7 @@ export default function Observatory() {
           storms={storms}
           wind={wind}
           forecast={forecast}
-          models={models.filter((m) => selected.includes(m.id)).map(m => ({...m, color: ({ifs: "#61d8ee", aifs: "#ba9dff", gefs: "#f3c775", aigefs: "#e790bd", cmce: "#7bde9a", fens: "#9db1ec", wnv3: "#ff91ab", google: "#8aafff", fnv3: "#ffbe88", gfs: "#40d8ff", ecmwf: "#ffad42"} as Record<string,string>)[m.id]}))}
+          models={displayedModels}
           onPoint={setPointInfo}
           onLoaded={() => setFrameReady(true)}
           onLoading={() => setFrameReady(false)}
@@ -256,9 +307,9 @@ export default function Observatory() {
             <Crosshair size={19} />
           </button>
           <button
-            title="匯出 4K 圖片"
+            title="下載雲圖"
             onClick={() => {
-              setStatus("準備 4K 匯出，等待圖磚完成…");
+              setStatus("準備下載雲圖，等待圖磚完成…");
               api.current?.export();
             }}
           >
@@ -463,9 +514,50 @@ export default function Observatory() {
                 風圈為最新分析，不隨衛星歷史時間回溯。
               </p>
             </section>
+            <section className="history-section">
+              <details>
+                <summary className="section-label">
+                  03 <span>颱風歷史路徑</span>
+                  <span className="count">JMA</span>
+                </summary>
+                <p className="source-note">日本氣象廳最佳路徑資料；可依年份選擇並顯示單一颱風。</p>
+                <div className="history-controls">
+                  <select aria-label="歷史颱風年份" value={historyYear} onChange={(e) => setHistoryYear(+e.target.value)}>
+                    {Array.from({ length: new Date().getUTCFullYear() - 1951 + 1 }, (_, i) => new Date().getUTCFullYear() - i).map((year) => <option key={year} value={year}>{year} 年</option>)}
+                  </select>
+                  <button type="button" onClick={loadHistory} disabled={historyLoading}>{historyLoading ? "載入中…" : "載入年份"}</button>
+                </div>
+                {historyStorms.length > 0 && (
+                  <select aria-label="選擇歷史颱風" value={historyId} onChange={(e) => {
+                    const id = e.target.value;
+                    setHistoryId(id);
+                    const storm = historyStorms.find((item) => item.id === id);
+                    if (storm?.points.length) {
+                      const lons: number[] = [];
+                      for (const point of storm.points) {
+                        let lon = point.lon;
+                        if (lons.length) {
+                          while (lon - lons[lons.length - 1] > 180) lon -= 360;
+                          while (lon - lons[lons.length - 1] < -180) lon += 360;
+                        }
+                        lons.push(lon);
+                      }
+                      const lats = storm.points.map((point: any) => point.lat);
+                      api.current?.region([Math.min(...lons) - 5, Math.min(...lats) - 5, Math.max(...lons) + 5, Math.max(...lats) + 5]);
+                    }
+                  }}>
+                    <option value="">選擇颱風以顯示路徑</option>
+                    {historyStorms.map((storm) => <option key={storm.id} value={storm.id}>{storm.name} · {storm.id} ({storm.points.length} 點)</option>)}
+                  </select>
+                )}
+                {historyError && <p className="source-note history-error">{historyError}</p>}
+                {historyId && <button className="history-clear" type="button" onClick={() => setHistoryId("")}>清除歷史路徑</button>}
+                <a className="model-source" href="https://www.jma.go.jp/jma/jma-eng/jma-center/rsmc-hp-pub-eg/besttrack.html" target="_blank" rel="noreferrer">JMA 原始歷史最佳路徑 ↗</a>
+              </details>
+            </section>
             <section>
               <div className="section-label">
-                03 <span>系集路徑</span>
+                04 <span>系集路徑</span>
                 <span className="tiny-pill">模式</span>
               </div>
               <ModelPanel
@@ -644,10 +736,9 @@ export default function Observatory() {
             </p>
             <h3>看清楚，不代表新增觀測細節</h3>
             <p>
-              靜態放大自動換用更高層級：真實色最高 11,000 像素全圓盤，B13 最高
-              5,500 像素。動畫預載接下來 3 張，使用較輕量的 4d
-              圖磚以優先流暢播放；停止後補回細節。4K
-              匯出是圖片尺寸，不把插值宣稱為更高的原生衛星解析度。
+              靜態放大自動換用較高層級圖磚；動畫預載接下來 3 張，使用較輕量的
+              圖磚以優先流暢播放；停止後補回細節。下載尺寸取決於目前地圖與圖磚，
+              不會以插值假稱新增衛星觀測細節。
             </p>
             <h3>時間與圖層</h3>
             <p>
@@ -879,7 +970,10 @@ function PointDetails({
   const p = d.point,
     s = d.spec,
     j = d.kind === "jma",
-    date = j
+    h = d.modelId === "jma-history",
+    date = h
+      ? p.time
+      : j
       ? p.validtime?.UTC
       : new Date(new Date(d.run).getTime() + p.lead * 3600000).toISOString();
   const wind = j ? Number(s?.maximumWind?.sustained?.["m/s"]) : p.windMs,
@@ -894,12 +988,12 @@ function PointDetails({
       >
         <X size={16} />
       </button>
-      <div className="eyebrow">{j ? "JMA 官方預報" : "系集成員預報"}</div>
+      <div className="eyebrow">{h ? "JMA 歷史最佳路徑" : j ? "JMA 官方預報" : "模式預報路徑"}</div>
       <h3>
-        {d.name || "氣旋"} <small>{j ? "" : d.track.member}</small>
+        {d.name || "氣旋"} <small>{j || h ? "" : d.track.member}</small>
       </h3>
       <p className="point-time">
-        {date ? tw(date) : "—"} 臺灣時間 UTC+8 · +{j ? p.advancedHours : p.lead}h
+        {date ? tw(date) : "—"} 臺灣時間 UTC+8 {h ? "· 歷史分析時間" : `· +${j ? p.advancedHours : p.lead}h`}
       </p>
       <div className="point-stats">
         <div>
@@ -924,9 +1018,9 @@ function PointDetails({
           {(j ? p.center[1] : p.lon).toFixed(2)}°E
         </dd>
         <dt>來源</dt>
-        <dd>{j ? "日本氣象廳（10 分鐘平均風）" : d.model}</dd>
+        <dd>{h ? "日本氣象廳 RSMC 最佳路徑" : j ? "日本氣象廳官方資料" : d.model}</dd>
         <dt>{j ? "發布時間" : "起報時間"}</dt>
-        <dd>{(j ? d.issue : d.run) ? tw(j ? d.issue : d.run) : "—"} UTC+8</dd>
+        <dd>{h ? "歷史最佳路徑分析" : (j ? d.issue : d.run) ? tw(j ? d.issue : d.run) : "—"} {h ? "" : "UTC+8"}</dd>
         {j && s?.maximumWind?.gust && (
           <>
             <dt>最大陣風</dt>
@@ -935,11 +1029,19 @@ function PointDetails({
         )}
       </dl>
       <h4>
-        {j && p.advancedHours > 0
+        {h
+          ? "最佳路徑風圈記錄"
+          : j && p.advancedHours > 0
           ? "暴風警戒域半徑（含預報不確定性）"
           : "風圈半徑"}
       </h4>
-      {j ? (
+      {h ? (
+        <>
+          {p.radius50 ? <p className="radius-row">50 節風圈：最長半徑 {Math.round(p.radius50.longestKm)} km · 最短半徑 {Math.round(p.radius50.shortestKm)} km</p> : <p className="muted">該時次未提供 50 節風圈資料</p>}
+          {p.radius30 && <p className="radius-row">30 節風圈：最長半徑 {Math.round(p.radius30.longestKm)} km · 最短半徑 {Math.round(p.radius30.shortestKm)} km</p>}
+          <p className="source-note">最佳路徑是事後分析資料，不是即時預報。最大／最小半徑依 JMA 最佳路徑欄位。</p>
+        </>
+      ) : j ? (
         radii?.length ? (
           radii.map((r: any, i: number) => (
             <p className="radius-row" key={i}>
@@ -966,7 +1068,7 @@ function PointDetails({
       ) : (
         <p className="muted">此來源沒有風圈資料</p>
       )}
-      {!j && (
+      {!j && !h && (
         <p className="source-note">
           此處為該模式的預測，不是日本氣象廳官方預報。NEQ
           依序為東北／東南／西南／西北；其他方向以原始代碼為準。各機構風速平均期間不同，不宜直接混比。
