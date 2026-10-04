@@ -4,7 +4,7 @@ import {Wind,Satellite,ChevronDown,ChevronUp,Play,Pause,Plus,Minus,Info,X,ArrowU
 import WindMap from './WindMap';
 import {WIND_MODELS,WIND_LEVELS,timeLimits} from '@/lib/wind-data.mjs';
 import './wind.css';
-import {nextPlaybackTime} from '@/lib/wind-playback.mjs';
+import {nextPlaybackTime,rangeInputFromUTC,rangeInputToUTC} from '@/lib/wind-playback.mjs';
 import {loadGEPS} from '@/lib/geps-client';
 import {loadICON} from '@/lib/icon-client';
 import {loadERA5} from '@/lib/era5-client';
@@ -35,7 +35,8 @@ export default function WindExplorer(){
   return()=>{current=false;clearTimeout(t);controller.abort()};
  },[key]);
  useEffect(()=>{if(!play||!data||loading)return;
-  const next=nextPlaybackTime(date,hour,rangeStart,rangeEnd,limits.min,limits.max);
+  const validTime=data.frames?.[hour]?.time||`${date}T${String(hour).padStart(2,'0')}:00:00Z`;
+  const next=nextPlaybackTime(validTime.slice(0,10),new Date(validTime).getUTCHours(),rangeStart,rangeEnd,limits.min,limits.max,data.cadence||1);
   if(!next){setPlay(false);setError('請選擇可用日期內的起訖時間，結束不可早於起始');return;}
   const nextHour=next.hour,nextDate=next.date;
   const controller=new AbortController();let current=true;
@@ -47,6 +48,10 @@ export default function WindExplorer(){
  const factor=units==='kmh'?3.6:units==='kt'?1.943844:1,unit=units==='kmh'?'公里／時':units==='kt'?'節':'公尺／秒';
  const valid=data?.frames?.[hour],stamp=valid?.time||date+'T'+String(hour).padStart(2,'0')+':00:00Z';
  const format=(t:string)=>new Date(t).toLocaleString('zh-TW',{timeZone:zone==='tw'?'Asia/Taipei':'UTC',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+ const rangeFirst=Date.parse(rangeStart+'Z'),rangeLast=Date.parse(rangeEnd+'Z'),selectedTime=Date.parse(valid?.time||`${date}T${String(hour).padStart(2,'0')}:00:00Z`);
+ const timelineHours=Number.isFinite(rangeFirst)&&Number.isFinite(rangeLast)&&rangeLast>=rangeFirst?Math.floor((rangeLast-rangeFirst)/3600000):23;
+ const timelinePosition=Number.isFinite(selectedTime)&&Number.isFinite(rangeFirst)?Math.max(0,Math.min(timelineHours,Math.round((selectedTime-rangeFirst)/3600000))):hour;
+ const timelineLabel=(offset:number)=>format(new Date(rangeFirst+offset*3600000).toISOString());
  const span=data?`${data.grid.lonStep.toFixed(2)}° × ${data.grid.latStep.toFixed(2)}°`:(raw?'載入中':'依目前視窗取樣');
  const modelName=kind==='history'?'ERA5 再分析':active.name;
  const missing=data?.raw?1-data.validFraction:valid?.u?valid.u.filter((x:any)=>!Number.isFinite(x)).length/valid.u.length:0;
@@ -75,9 +80,9 @@ export default function WindExplorer(){
    <section className={'wind-time '+(timeCollapsed?'is-collapsed':'')} aria-label="風場時間控制">
     <button className="wind-time-collapse" aria-expanded={!timeCollapsed} aria-label={timeCollapsed?'展開時間控制':'收起時間控制'} onClick={()=>setTimeCollapsed(!timeCollapsed)}>{timeCollapsed?<><ChevronUp size={17}/><span>展開時間控制 · {format(stamp)}</span></>:<><span>收起控制列</span><ChevronDown size={17}/></>}</button>
     <div className="wind-time-top"><div><span className={'wind-badge '+(kind==='history'?'historical':'')}>{kind==='history'?'再分析':'模式預報'}</span><strong>{format(stamp)}</strong><select aria-label="風場時區" value={zone} onChange={e=>setZone(e.target.value)}><option value="tw">UTC+8 臺灣</option><option value="utc">UTC 世界時</option></select></div><label className="wind-date">日期<input aria-label="風場日期（UTC）" type="date" value={date} min={limits.min} max={limits.max} onChange={e=>{const v=e.target.value;if(v>=limits.min&&v<=limits.max){setDate(v);setPlay(false)}}}/><small>UTC 日期</small></label></div>
-    <button className="wind-range-toggle" aria-expanded={rangeOpen} onClick={()=>setRangeOpen(!rangeOpen)}>動畫區間 · UTC <ChevronDown size={14}/></button>
-    {rangeOpen&&<div className="wind-range-fields"><label>起始時間（UTC）<input aria-label="動畫起始時間（UTC）" type="datetime-local" step="3600" min={limits.min+'T00:00'} max={limits.max+'T23:00'} value={rangeStart} onChange={e=>{setRangeStart(e.target.value);setPlay(false)}}/></label><label>結束時間（UTC）<input aria-label="動畫結束時間（UTC）" type="datetime-local" step="3600" min={rangeStart} max={limits.max+'T23:00'} value={rangeEnd} onChange={e=>{setRangeEnd(e.target.value);setPlay(false)}}/></label><small>播放到結束後回到起始；資料依模式原生間隔顯示。</small></div>}
-    <div className="wind-time-track"><button className="wind-play" aria-label={play?'暫停風場回放':'播放風場回放'} disabled={!data||loading} onClick={()=>setPlay(!play)}>{play?<Pause size={19}/>:<Play size={19}/>}</button><div className="wind-slider-wrap"><input aria-label="風場時間軸" type="range" min="0" max={data?data.frames.length-1:23} step="1" value={hour} disabled={!data||loading} onChange={e=>{setHour(+e.target.value);setPlay(false);setPoint(null)}}/><div><span>00:00 UTC</span><span>12:00 UTC</span><span>23:00 UTC</span></div></div><button className="wind-icon" aria-label="重新讀取風場" onClick={()=>{setRefresh(r=>r+1);setPlay(false)}}><RefreshCw size={17}/></button></div>
+    <button className="wind-range-toggle" aria-expanded={rangeOpen} onClick={()=>setRangeOpen(!rangeOpen)}>動畫區間 · {zone==='tw'?'臺灣時間 UTC+8':'UTC'} <ChevronDown size={14}/></button>
+    {rangeOpen&&<div className="wind-range-fields"><label>起始時間（{zone==='tw'?'UTC+8':'UTC'}）<input aria-label={`動畫起始時間（${zone==='tw'?'臺灣時間 UTC+8':'UTC'}）`} type="datetime-local" step="3600" min={rangeInputFromUTC(limits.min+'T00:00',zone)} max={rangeInputFromUTC(limits.max+'T23:00',zone)} value={rangeInputFromUTC(rangeStart,zone)} onChange={e=>{const next=rangeInputToUTC(e.target.value,zone);setRangeStart(next);if(next>rangeEnd)setRangeEnd(next);setPlay(false)}}/></label><label>結束時間（{zone==='tw'?'UTC+8':'UTC'}）<input aria-label={`動畫結束時間（${zone==='tw'?'臺灣時間 UTC+8':'UTC'}）`} type="datetime-local" step="3600" min={rangeInputFromUTC(rangeStart,zone)} max={rangeInputFromUTC(limits.max+'T23:00',zone)} value={rangeInputFromUTC(rangeEnd,zone)} onChange={e=>{const next=rangeInputToUTC(e.target.value,zone);setRangeEnd(next);setPlay(false)}}/></label><small>以選取的時區輸入；播放到結束後回到起始。時間軸涵蓋完整區間，並依模式實際資料間隔前進。</small></div>}
+    <div className="wind-time-track"><button className="wind-play" aria-label={play?'暫停風場回放':'播放風場回放'} disabled={!data||loading} onClick={()=>setPlay(!play)}>{play?<Pause size={19}/>:<Play size={19}/>}</button><div className="wind-slider-wrap"><input aria-label="風場時間軸" type="range" min="0" max={timelineHours} step="1" value={timelinePosition} disabled={!data||loading} onChange={e=>{const t=new Date(rangeFirst+Number(e.target.value)*3600000).toISOString();setDate(t.slice(0,10));setHour(new Date(t).getUTCHours());setPlay(false);setPoint(null)}}/><div><span>{timelineLabel(0)}</span><span>{timelineLabel(Math.floor(timelineHours/2))}</span><span>{timelineLabel(timelineHours)}</span></div></div><button className="wind-icon" aria-label="重新讀取風場" onClick={()=>{setRefresh(r=>r+1);setPlay(false)}}><RefreshCw size={17}/></button></div>
     <div className="wind-status" role="status"><span className={loading?'loading':''}>{loading?'讀取來源原始風場…':error||`${data?.raw?(kind==='history'?'ERA5 原始格點已載入':'原始格點已載入 · 起報 '+format(data.run)+' · +'+data.step+'h'):'此模式尚未接入原始風場資料'}${missing>.05?' · 部分格點缺測或位於地形下方':''}`}</span><a href={raw?(data?.source||rawSource.url):'https://www.ecmwf.int/en/forecasts/datasets/open-data'} target="_blank" rel="noreferrer">{raw?(data?.sourceName||rawSource.label):'查看原始資料可用性'} <ArrowUpRight size={11}/></a></div>
    </section>
   </section>
