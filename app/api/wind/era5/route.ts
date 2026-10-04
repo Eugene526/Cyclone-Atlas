@@ -1,3 +1,4 @@
+import {edgeCache} from '@/lib/edge-cache.mjs';
 import {bloscPlan,assembleBlosc} from '@/lib/blosc-slice.mjs';
 import {WIND_LEVELS,timeLimits} from '@/lib/wind-data.mjs';
 const ROOT='https://storage.googleapis.com/gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3/';
@@ -13,7 +14,7 @@ async function slice(url:string,start:number,length:number){const h=await range(
 }
 const cache=new Map<string,ArrayBuffer>();
 export async function GET(req:Request){try{const q=new URL(req.url).searchParams,date=q.get('date')||'',hour=Number(q.get('hour')),level=q.get('level')||'10m',limits=timeLimits('history',null);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date<limits.min||date>limits.max||!q.has('hour')||!Number.isFinite(Date.parse(date+'T00:00Z'))||new Date(date+'T00:00Z').toISOString().slice(0,10)!==date||!Number.isInteger(hour)||hour<0||hour>23||!WIND_LEVELS.some(l=>l.id===level))return Response.json({error:'ERA5 日期／高度不符可用範圍'},{status:400});
- const key=[date,hour,level].join('|'),edge=(globalThis as any).caches?.default,edgeKey=new Request(new URL('/api/wind/era5?'+new URLSearchParams({date,hour:String(hour),level}),req.url)),edgeHit=await edge?.match(edgeKey);if(edgeHit)return edgeHit;const hit=cache.get(key);if(hit)return new Response(hit.slice(0),{headers:{'Content-Type':'application/octet-stream','Cache-Control':'public,max-age=86400'}});
+ const key=[date,hour,level].join('|'),edge=edgeCache,edgeKey=new Request(new URL('/api/wind/era5?'+new URLSearchParams({date,hour:String(hour),level}),req.url)),edgeHit=await edge?.match(edgeKey);if(edgeHit)return edgeHit;const hit=cache.get(key);if(hit)return new Response(hit.slice(0),{headers:{'Content-Type':'application/octet-stream','Cache-Control':'public,max-age=86400'}});
  const t=(Date.parse(date+'T00:00Z')-Date.parse('1900-01-01T00:00Z'))/3600000+hour,cells=721*1440,bytes=cells*4,high=level.endsWith('hPa'),index=high?LEVELS.indexOf(parseInt(level)):0;if(index<0)throw Error('ERA5 原始壓力層不存在');
  const names=high?['u_component_of_wind','v_component_of_wind','surface_pressure']:[`${parseInt(level)}m_u_component_of_wind`,`${parseInt(level)}m_v_component_of_wind`];
  const pieces=[];for(const name of names){const pressure=high&&name!=='surface_pressure',r=await slice(`${ROOT}${name}/${t}.`+(pressure?'0.0.0':'0.0'),pressure?index*bytes:0,bytes);pieces.push(r)}

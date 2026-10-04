@@ -1,3 +1,4 @@
+import {edgeCache} from '@/lib/edge-cache.mjs';
 import {gfsUrl,windRanges,formatRun,runDate} from '@/lib/gfs-raw.mjs';
 import {WIND_LEVELS} from '@/lib/wind-data.mjs';
 const memory=new Map<string,{until:number,body:ArrayBuffer,type:string}>();
@@ -5,7 +6,7 @@ const pending=new Map<string,Promise<{body:ArrayBuffer,type:string}>>();
 async function cached(url:string,range?:string){
  const key=url+'|'+(range||''),hit=memory.get(key);if(hit&&hit.until>Date.now())return new Response(hit.body.slice(0),{headers:{'Content-Type':hit.type,'Cache-Control':'public,max-age=86400'}});
  // Cache immutable run/field bytes at the edge, shared by all viewers.
- const cache=(globalThis as any).caches?.default;
+ const cache=edgeCache;
  const cacheKey=new Request(url+(range?'?fieldrange='+range.replace(/[^0-9-]/g,''):''));
  const edge=await cache?.match(cacheKey);if(edge)return edge;
  if(!pending.has(key))pending.set(key,(async()=>{
