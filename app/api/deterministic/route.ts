@@ -4,7 +4,7 @@ import { decodeBUFR, toTracks } from "@/lib/decode-bufr.mjs";
 
 const configs: Record<string, any> = {
   gfs: { label: "GFS 確定性", color: "#40d8ff", kind: "atcf" },
-  ecmwf: { label: "ECMWF IFS HRES", color: "#ffad42", kind: "bufr" },
+  ecmwf: { label: "ECMWF IFS HRES 傳統模式", color: "#ffad42", kind: "bufr" },
 };
 const cache = new Map<string, any>();
 export async function GET(req: Request) {
@@ -27,8 +27,10 @@ export async function GET(req: Request) {
           url = `https://nomads.ncep.noaa.gov/pub/data/nccf/com/ens_tracker/prod/gfs.${date}/${hh}/tctrack/avnop.t${hh}z.cyclone.trackatcfunix`;
           tracks = parseATCF(await (await upstream(url)).text());
         } else {
-          const step = hh === "00" || hh === "12" ? 240 : 90;
-          const stream = hh === "00" || hh === "12" ? "oper" : "scda";
+          // ECMWF Open Data HRES TC tracks: +360 h for 00/12 UTC and
+          // +144 h for 06/18 UTC, all under the current `oper` stream.
+          const step = hh === "00" || hh === "12" ? 360 : 144;
+          const stream = "oper";
           url = `https://storage.googleapis.com/ecmwf-open-data/${date}/${hh}z/ifs/0p25/${stream}/${date}${hh}0000-${step}h-${stream}-tf.bufr`;
           const bytes = await (await upstream(url)).arrayBuffer();
           if (bytes.byteLength > 8_000_000) continue;

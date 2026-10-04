@@ -688,7 +688,7 @@ function ModelPanel(p: any) {
     [errors, setErrors] = useState<Record<string, string>>({});
   const configs = [
     { id: "gfs", label: "GFS", color: "#40d8ff" },
-    { id: "ecmwf", label: "ECMWF IFS HRES", color: "#ffad42" },
+    { id: "ecmwf", label: "ECMWF IFS HRES 傳統模式", color: "#ffad42" },
     { id: "ifs", label: "ECMWF IFS 系集", color: "#61d8ee" },
     { id: "aifs", label: "ECMWF AIFS 系集", color: "#ba9dff" },
     { id: "gefs", label: "GEFS", color: "#b9ad91" },
@@ -746,8 +746,8 @@ function ModelPanel(p: any) {
     }
   }
   useEffect(() => {
-    load("ifs", true);
-    load("aifs", true);
+    load("ifs");
+    load("aifs");
     load("gfs");
     load("ecmwf");
     const initial = setTimeout(
