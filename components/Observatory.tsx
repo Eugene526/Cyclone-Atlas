@@ -252,6 +252,7 @@ export default function Observatory() {
           wind={wind}
           forecast={forecast}
           models={displayedModels}
+          thermal={thermal}
           onThermal={d=>setThermal((previous:any)=>acceptThermal(previous,d))}
           onPoint={setPointInfo}
           onLoaded={() => setFrameReady(true)}

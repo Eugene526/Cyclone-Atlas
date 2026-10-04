@@ -55,6 +55,7 @@ export default function WeatherMap(p: {
   nextTimes: string[];
   onPoint: (data: any) => void;
   onThermal: (data:any)=>void;
+  thermal: any;
   onLoaded: () => void;
   onLoading: () => void;
   onReady: (api: MapAPI) => void;
@@ -64,6 +65,7 @@ export default function WeatherMap(p: {
     sat = useRef<any>(null),
     vectors = useRef<VectorSource | null>(null),
     selection = useRef<VectorSource | null>(null),
+    probeSelection = useRef<VectorSource | null>(null),
     selectedTrack = useRef<any>(null),
     probeID = useRef(0),
     cb = useRef(p);
@@ -80,6 +82,7 @@ export default function WeatherMap(p: {
     });
     vectors.current = new VectorSource();
     selection.current = new VectorSource();
+    probeSelection.current = new VectorSource();
     const m = new Map({
       target: el.current!,
       layers: [
@@ -93,6 +96,7 @@ export default function WeatherMap(p: {
         coasts,
         new VectorLayer({ source: vectors.current }),
         new VectorLayer({ source: selection.current }),
+        new VectorLayer({source:probeSelection.current,style:new Style({image:new CircleStyle({radius:7,fill:new Fill({color:"#a6ded3"}),stroke:new Stroke({color:"#fff",width:2})})})}),
       ],
       view: new View({
         center: fromLonLat([137, 22]),
@@ -119,8 +123,9 @@ export default function WeatherMap(p: {
         { hitTolerance: 8 },
       );
       if (!chosen) {
-        if(cb.current.mode!=="ott")return;
+        if(cb.current.mode!=="ott"){probeSelection.current?.clear();return;}
         const id=++probeID.current,time=cb.current.time,[lon,lat]=toLonLat(e.coordinate),size=m.getSize()||[0,0];
+        probeSelection.current?.clear();probeSelection.current?.addFeature(new Feature(new Point(e.coordinate)));
         const detail={kind:'thermal',time,lon:((lon+180)%360+360)%360-180,lat,popupPosition:{x:e.pixel[0],y:e.pixel[1],width:size[0],height:size[1]},loading:true};
         cb.current.onThermal(detail);
         cloudTemperature(time,transform(fromLonLat([detail.lon,lat]),'EPSG:3857','HIMAWARI')).then(value=>{if(id===probeID.current&&cb.current.time===time&&cb.current.mode==='ott')cb.current.onThermal({...detail,...value,loading:false})}).catch(error=>{if(id===probeID.current&&cb.current.time===time&&cb.current.mode==='ott')cb.current.onThermal({...detail,error:error.message,loading:false})});
@@ -349,6 +354,7 @@ export default function WeatherMap(p: {
     };
   }, [p.nextTimes.join(","), p.mode, p.playing]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
+  useEffect(()=>{if(!p.thermal)probeSelection.current?.clear()},[p.thermal]);
   useEffect(() => {
     const s = vectors.current;
     if (!s) return;
