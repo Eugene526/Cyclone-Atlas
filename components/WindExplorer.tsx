@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {Wind,Satellite,ChevronDown,Play,Pause,Plus,Minus,Info,X,ArrowUpRight,RefreshCw,Layers} from 'lucide-react';
+import {Wind,Satellite,ChevronDown,ChevronUp,Play,Pause,Plus,Minus,Info,X,ArrowUpRight,RefreshCw,Layers} from 'lucide-react';
 import WindMap from './WindMap';
 import {WIND_MODELS,WIND_LEVELS,timeLimits} from '@/lib/wind-data.mjs';
 import './wind.css';
@@ -12,7 +12,7 @@ import {loadRaw} from '@/lib/raw-client';
 import {loadJMA} from '@/lib/jma-client';
 import {loadGFS} from '@/lib/gfs-client';
 export default function WindExplorer(){
- const [kind,setKind]=useState('forecast'),[model,setModel]=useState('gfs'),[level,setLevel]=useState('10m'),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[hour,setHour]=useState(new Date().getUTCHours()),[bounds,setBounds]=useState<number[]>([]),[data,setData]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[play,setPlay]=useState(false),[motion,setMotion]=useState(true),[units,setUnits]=useState('ms'),[zone,setZone]=useState('tw'),[point,setPoint]=useState<any>(null),[info,setInfo]=useState(false),[expanded,setExpanded]=useState(false),[refresh,setRefresh]=useState(0);
+ const [kind,setKind]=useState('forecast'),[model,setModel]=useState('gfs'),[level,setLevel]=useState('10m'),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[hour,setHour]=useState(new Date().getUTCHours()),[bounds,setBounds]=useState<number[]>([]),[data,setData]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[play,setPlay]=useState(false),[motion,setMotion]=useState(true),[units,setUnits]=useState('ms'),[zone,setZone]=useState('tw'),[point,setPoint]=useState<any>(null),[info,setInfo]=useState(false),[expanded,setExpanded]=useState(false),[timeCollapsed,setTimeCollapsed]=useState(false),[refresh,setRefresh]=useState(0);
  const [rangeOpen,setRangeOpen]=useState(false),[rangeStart,setRangeStart]=useState(date+'T00:00'),[rangeEnd,setRangeEnd]=useState(date+'T23:00');
  const dialog=useRef<HTMLDialogElement>(null);
  const api=useRef<any>(null),active=WIND_MODELS.find(m=>m.id===model)!,limits=timeLimits(kind,active),height=WIND_LEVELS.find(l=>l.id===level)!;
@@ -72,7 +72,8 @@ export default function WindExplorer(){
    <div className="wind-zoom"><button aria-label="放大風場地圖" onClick={()=>api.current?.zoom(1)}><Plus size={19}/></button><button aria-label="縮小風場地圖" onClick={()=>api.current?.zoom(-1)}><Minus size={19}/></button></div>
    {point&&<aside className="wind-point" style={popupStyle} aria-label="選取位置風場資訊"><button aria-label="關閉風場資訊" onClick={()=>setPoint(null)}><X size={15}/></button><small>{point.lat.toFixed(2)}° {point.lon.toFixed(2)}°</small>{point.value?<><strong>{(point.value.speed*factor).toFixed(1)} <em>{unit}</em></strong><p>風從 {point.value.direction.toFixed(0)}° 吹來</p></>:<p>此格點無有效資料</p>}<footer>{modelName} · {level}<br/>{format(stamp)} · {zone==='tw'?'UTC+8':'UTC'}</footer></aside>}
    <div className="wind-legend"><div><span>風速 <small>{unit}</small></span><span>{level}</span></div><div className="wind-gradient"/><div className="wind-ticks">{[0,7,18,35,50].map(v=><span key={v}>{Math.round(v*factor)}</span>)}</div><p>{raw?'來源原始格點':'原始資料未接入'} {span} · 原生 {data?.nativeResolution||(kind==='history'?'0.25°':active.native)||'0.25°'}<br/>顏色與粒子為插值呈現，不新增觀測細節。</p></div>
-   <section className="wind-time" aria-label="風場時間控制">
+   <section className={'wind-time '+(timeCollapsed?'is-collapsed':'')} aria-label="風場時間控制">
+    <button className="wind-time-collapse" aria-expanded={!timeCollapsed} aria-label={timeCollapsed?'展開時間控制':'收起時間控制'} onClick={()=>setTimeCollapsed(!timeCollapsed)}>{timeCollapsed?<><ChevronUp size={17}/><span>展開時間控制 · {format(stamp)}</span></>:<><span>收起控制列</span><ChevronDown size={17}/></>}</button>
     <div className="wind-time-top"><div><span className={'wind-badge '+(kind==='history'?'historical':'')}>{kind==='history'?'再分析':'模式預報'}</span><strong>{format(stamp)}</strong><select aria-label="風場時區" value={zone} onChange={e=>setZone(e.target.value)}><option value="tw">UTC+8 臺灣</option><option value="utc">UTC 世界時</option></select></div><label className="wind-date">日期<input aria-label="風場日期（UTC）" type="date" value={date} min={limits.min} max={limits.max} onChange={e=>{const v=e.target.value;if(v>=limits.min&&v<=limits.max){setDate(v);setPlay(false)}}}/><small>UTC 日期</small></label></div>
     <button className="wind-range-toggle" aria-expanded={rangeOpen} onClick={()=>setRangeOpen(!rangeOpen)}>動畫區間 · UTC <ChevronDown size={14}/></button>
     {rangeOpen&&<div className="wind-range-fields"><label>起始時間（UTC）<input aria-label="動畫起始時間（UTC）" type="datetime-local" step="3600" min={limits.min+'T00:00'} max={limits.max+'T23:00'} value={rangeStart} onChange={e=>{setRangeStart(e.target.value);setPlay(false)}}/></label><label>結束時間（UTC）<input aria-label="動畫結束時間（UTC）" type="datetime-local" step="3600" min={rangeStart} max={limits.max+'T23:00'} value={rangeEnd} onChange={e=>{setRangeEnd(e.target.value);setPlay(false)}}/></label><small>播放到結束後回到起始；資料依模式原生間隔顯示。</small></div>}
