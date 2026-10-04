@@ -59,7 +59,7 @@ export default function WindExplorer(){
  function changeModel(id:string){const chosen=WIND_MODELS.find(m=>m.id===id)!;setModel(id);setPlay(false);if((chosen.surfaceOnly&&!height.surface)||(chosen.no100&&level==='100m'))setLevel('10m');const lim=timeLimits(kind,chosen);if(date>lim.max||date<lim.min)setDate(lim.min)}
  const popupStyle=point?{left:Math.max(12,Math.min(point.width-248,point.x+16)),top:Math.max(110,Math.min(point.height-180,point.y-40))}:{};
  return <main className="wind-explorer">
-  <header className="wind-header"><a href="/" className="wind-brand"><span>◉</span><div>颱風觀測站<small>CYCLONE ATLAS</small></div></a><nav aria-label="觀測頁面"><a href="/"><Satellite size={15}/>衛星</a><a href="/wind" aria-current="page"><Wind size={16}/>風場</a></nav><button className="wind-icon" aria-label="全球風場資料說明" onClick={()=>setInfo(true)}><Info size={19}/></button></header>
+  <header className="wind-header"><a href="/" className="wind-brand" aria-label="颱風觀測站首頁"><img src="/images/typhoon-observatory-logo.png" alt="颱風觀測站 · Cyclone Atlas"/></a><nav aria-label="觀測頁面"><a href="/"><Satellite size={15}/>衛星</a><a href="/wind" aria-current="page"><Wind size={16}/>風場</a></nav><button className="wind-icon" aria-label="全球風場資料說明" onClick={()=>setInfo(true)}><Info size={19}/></button></header>
   <section className="wind-workspace">
    <WindMap selected={point} data={data} hour={hour} motion={motion} onBounds={b=>setBounds(previous=>previous.join(',')===b.join(',')?previous:b)} onPoint={setPoint} onReady={a=>api.current=a}/>
    <div className="wind-heading"><span className="wind-kicker">大氣流動 · 全球探索</span><h1>全球風場</h1><p>{modelName} <span>／</span> {height.label}</p></div>

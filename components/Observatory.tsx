@@ -198,11 +198,8 @@ export default function Observatory() {
   return (
     <main className="observatory">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="颱風觀測站首頁">
-          <span className="brand-mark">◉</span>
-          <span>
-            颱風觀測站<small>CYCLONE ATLAS</small>
-          </span>
+        <a className="brand brand-logo-link" href="/" aria-label="颱風觀測站首頁">
+          <img className="brand-logo" src="/images/typhoon-observatory-logo.png" alt="颱風觀測站 · Cyclone Atlas" />
         </a>
         <nav className="header-switcher" aria-label="觀測頁面">
           <a className="selected" href="/" aria-current="page"><Satellite size={15}/>衛星</a>

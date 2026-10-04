@@ -212,7 +212,7 @@ export default function WeatherMap(p: {
         const oldSize = m.getSize()!,
           v = m.getView(),
           oldRes = v.getResolution()!;
-        m.once("rendercomplete", () => {
+        m.once("rendercomplete", async () => {
           try {
             const c = document.createElement("canvas");
             c.width = 3840;
@@ -244,15 +244,19 @@ export default function WeatherMap(p: {
             ctx.globalAlpha = 1;
             ctx.fillStyle = "#07121ee8";
             ctx.fillRect(0, 2070, 3840, 90);
+            const logo = new Image();
+            logo.src = "/images/typhoon-observatory-logo.png";
+            await logo.decode();
+            ctx.drawImage(logo, 38, 2071, 260, 86);
             ctx.fillStyle = "white";
             ctx.font = "28px sans-serif";
             ctx.fillText(
               `CYCLONE ATLAS · HIMAWARI · ${cb.current.time} · ${cb.current.mode.toUpperCase()} · JMA / NICT`,
-              45,
+              325,
               2126,
             );
             const a = document.createElement("a");
-            a.download = "cyclone-atlas-4k.png";
+            a.download = "cyclone-atlas.png";
             a.href = c.toDataURL("image/png");
             a.click();
           } catch {
