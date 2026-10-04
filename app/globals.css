@@ -808,8 +808,11 @@ input[type="range"] {
     left: 20px;
   }
   .workspace {
-    display: none;
+    display: flex;
+    font-size: 12px;
+    gap: 3px;
   }
+  .workspace small { font-size: 9px; letter-spacing: .7px; }
   .sidebar {
     top: 8px;
     right: 8px;
@@ -843,6 +846,7 @@ input[type="range"] {
   .header-rule {
     display: none;
   }
+  .workspace { display:none; }
   .header-actions {
     gap: 8px;
   }
