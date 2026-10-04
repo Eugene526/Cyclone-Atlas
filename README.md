@@ -57,7 +57,7 @@ node tests/data-check.mjs /path/to/ecmwf-tf.bufr
 
 ## 資料夾使用方式
 
-參考「颱風衛星圖 來源：雞蛋糕」所有 Python 程式的取圖、雲圖合成、OTT、晝夜選擇與動畫流程；沿用提供的 Natural Earth 海岸線。MP4/PNG 是視覺參考，未把 54 GB 影片/地形資料全部上傳網站；arial.ttf 未重新發布。舊 ty_track.txt 不是最新預報，不混入即時模式。衛星原始資料不經生成式 AI 重繪。
+使用 Natural Earth 海岸線。MP4/PNG 是視覺參考，未把 54 GB 影片/地形資料全部上傳網站；arial.ttf 未重新發布。舊 ty_track.txt 不是最新預報，不混入即時模式。衛星原始資料不經生成式 AI 重繪。
 
 © ECMWF（CC BY 4.0，https://doi.org/10.21957/open-data）；NICT/JMA；NOAA/ECCC/FNMOC；Google Weather Lab；Natural Earth（public domain）。研究觀測工具，不取代官方防災警報。
 
