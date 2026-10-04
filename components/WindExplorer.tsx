@@ -38,7 +38,7 @@ export default function WindExplorer(){
  const format=(t:string)=>new Date(t).toLocaleString('zh-TW',{timeZone:zone==='tw'?'Asia/Taipei':'UTC',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
  const span=data?`${data.grid.lonStep.toFixed(2)}° × ${data.grid.latStep.toFixed(2)}°`:'依目前視窗取樣';
  const modelName=kind==='history'?'ERA5 再分析':active.name;
- const missing=valid?valid.u.filter((x:any)=>!Number.isFinite(x)).length/valid.u.length:0;
+ const missing=data?.raw?1-data.validFraction:valid?.u?valid.u.filter((x:any)=>!Number.isFinite(x)).length/valid.u.length:0;
  function changeKind(next:string){setKind(next);setPlay(false);const lim=timeLimits(next,active);setDate(next==='history'?lim.max:lim.min);if(next==='history'&&!height.surface)setLevel('10m')}
  function changeModel(id:string){const chosen=WIND_MODELS.find(m=>m.id===id)!;setModel(id);setPlay(false);if((chosen.surfaceOnly&&!height.surface)||(chosen.no100&&level==='100m'))setLevel('10m');const lim=timeLimits(kind,chosen);if(date>lim.max||date<lim.min)setDate(lim.min)}
  const popupStyle=point?{left:Math.max(12,Math.min(point.width-248,point.x+16)),top:Math.max(110,Math.min(point.height-180,point.y-40))}:{};
