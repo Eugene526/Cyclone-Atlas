@@ -7,3 +7,13 @@
 @media(max-width:720px){.wind-range-fields{grid-template-columns:1fr;gap:8px}.wind-range-fields input{font-size:16px;min-height:40px}.wind-range-toggle{min-height:34px}.wind-time:has(.wind-range-fields){max-height:48dvh}.wind-legend{bottom:202px}.wind-point{bottom:278px}.wind-time-top{margin-bottom:3px}}
 @media(max-width:720px){.wind-time-collapse{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-height:26px;padding:0 2px 5px;margin:0 0 3px auto;border:0;background:transparent;color:#a9d7cc;font-size:10px}.wind-time.is-collapsed{max-height:52px;min-height:0;padding:5px 12px;overflow:hidden}.wind-time.is-collapsed>*:not(.wind-time-collapse){display:none!important}.wind-time.is-collapsed .wind-time-collapse{width:100%;min-height:38px;justify-content:center;padding:0;margin:0;font-size:12px}.wind-workspace:has(.wind-time.is-collapsed) .wind-legend{bottom:75px}.wind-workspace:has(.wind-time.is-collapsed) .wind-point{bottom:111px}}
 @media(max-height:550px){.wind-heading{display:none}.wind-settings{top:12px}.wind-legend{display:none}.wind-time{max-height:43dvh;overflow:auto}.wind-settings-body{max-height:35dvh;overflow:auto}}
+
+/* The time-panel toggle is available and functional on desktop as well as mobile. */
+.wind-time-collapse{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-height:28px;padding:0 3px 6px;margin:0 0 5px auto;border:0;background:transparent;color:#a9d7cc;font-size:11px;line-height:1.2;border-radius:6px}
+.wind-time-collapse:focus-visible{outline:2px solid #d5eee5;outline-offset:2px}
+.wind-time.is-collapsed{max-height:58px;min-height:0;padding:7px 14px;overflow:hidden}
+.wind-time.is-collapsed>*:not(.wind-time-collapse){display:none!important}
+.wind-time.is-collapsed .wind-time-collapse{width:100%;min-height:42px;justify-content:center;padding:0;margin:0;font-size:12px}
+.wind-workspace:has(.wind-time.is-collapsed) .wind-legend{bottom:82px}
+.wind-workspace:has(.wind-time.is-collapsed) .wind-point{bottom:118px}
+@media(max-width:720px){.wind-time-collapse{font-size:10px;min-height:26px;padding:0 2px 5px;margin:0 0 3px auto}.wind-time.is-collapsed{max-height:52px;padding:5px 12px}.wind-time.is-collapsed .wind-time-collapse{min-height:38px;font-size:12px}.wind-workspace:has(.wind-time.is-collapsed) .wind-legend{bottom:75px}.wind-workspace:has(.wind-time.is-collapsed) .wind-point{bottom:111px}}

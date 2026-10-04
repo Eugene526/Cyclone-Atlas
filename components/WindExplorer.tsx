@@ -57,7 +57,7 @@ export default function WindExplorer(){
   <header className="wind-header"><a href="/" className="wind-brand"><span>◉</span><div>颱風觀測室<small>CYCLONE ATLAS</small></div></a><nav aria-label="觀測頁面"><a href="/"><Satellite size={15}/>衛星</a><a href="/wind" aria-current="page"><Wind size={16}/>風場</a></nav><button className="wind-icon" aria-label="全球風場資料說明" onClick={()=>setInfo(true)}><Info size={19}/></button></header>
   <section className="wind-workspace">
    <WindMap selected={point} data={data} hour={hour} motion={motion} onBounds={b=>setBounds(previous=>previous.join(',')===b.join(',')?previous:b)} onPoint={setPoint} onReady={a=>api.current=a}/>
-   <div className="wind-heading"><span className="wind-kicker">大氣流動 · 全球探索</span><h1>看見風的形狀</h1><p>{modelName} <span>／</span> {height.label}</p></div>
+   <div className="wind-heading"><span className="wind-kicker">大氣流動 · 全球探索</span><h1>全球風場</h1><p>{modelName} <span>／</span> {height.label}</p></div>
    <section className={'wind-settings '+(expanded?'is-open':'')} aria-label="風場設定">
     <button className="wind-settings-toggle" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}><Layers size={16}/><span>{modelName} · {level}</span><ChevronDown size={16}/></button>
     <div className="wind-settings-body">
