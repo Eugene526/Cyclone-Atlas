@@ -204,13 +204,11 @@ export default function Observatory() {
             颱風觀測室<small>CYCLONE ATLAS</small>
           </span>
         </a>
-        <div className="header-rule" />
-        <div className="workspace">
-          <span>衛星觀測</span>
-          <small>西北太平洋 · HIMAWARI</small>
-        </div>
+        <nav className="header-switcher" aria-label="觀測頁面">
+          <a className="selected" href="/" aria-current="page"><Satellite size={15}/>衛星</a>
+          <a href="/wind"><Wind size={16}/>風場</a>
+        </nav>
         <div className="header-actions">
-          <a href="/wind" style={{color:"#b9e7dd",fontSize:12,textDecoration:"none",whiteSpace:"nowrap"}}>全球風場 ↗</a>
           <span className={"live-tag " + (age > 60 ? "stale" : "")}>
             <i />
             {latest ? (age > 60 ? "資料延遲" : "持續觀測") : "連線中"}

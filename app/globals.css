@@ -93,6 +93,27 @@ a {
   width: 1px;
   background: var(--line);
 }
+.header-switcher {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.header-switcher a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: 24px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition: background .18s ease, color .18s ease;
+}
+.header-switcher a:hover,
+.header-switcher a.selected {
+  background: #20383f;
+  color: #c5ece1;
+}
 .workspace {
   display: flex;
   flex-direction: column;
@@ -846,12 +867,14 @@ input[type="range"] {
   .header-rule {
     display: none;
   }
-  .workspace { display:none; }
+  .header-switcher { gap: 1px; }
+  .header-switcher a { gap: 4px; padding: 8px 8px; font-size: 11px; }
   .header-actions {
     gap: 8px;
   }
   .live-tag {
-    font-size: 9px;
+    font-size: 0;
+    gap: 0;
   }
   .canvas-shell {
     height: calc(100% - 54px);
