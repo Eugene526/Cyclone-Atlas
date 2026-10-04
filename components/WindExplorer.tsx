@@ -37,12 +37,14 @@ export default function WindExplorer(){
  useEffect(()=>{if(!play||!data||loading)return;
   const validTime=data.frames?.[hour]?.time||`${date}T${String(hour).padStart(2,'0')}:00:00Z`;
   const next=nextPlaybackTime(validTime.slice(0,10),new Date(validTime).getUTCHours(),rangeStart,rangeEnd,limits.min,limits.max,data.cadence||1);
-  if(!next){setPlay(false);setError('請選擇可用日期內的起訖時間，結束不可早於起始');return;}
+  if(!next){setPlay(false);setError('目前動畫區間已到末端，請調整起訖時間後再播放');return;}
   const nextHour=next.hour,nextDate=next.date;
   const controller=new AbortController();let current=true;
-  // Decode the next raw field before advancing the clock: no blank in-between frame.
-  const ready=raw?rawLoad(nextDate,nextHour,level,controller.signal):Promise.resolve(null);
-  const t=setTimeout(async()=>{try{await ready;if(current){setHour(nextHour);setDate(nextDate)}}catch(e){if(current){setPlay(false);setError(e instanceof Error?e.message:'下一張風場未到齊')}}},850);
+  // Reuse already-loaded frames first; otherwise fetch and validate a frame before moving.
+  const targetTime=`${nextDate}T${String(nextHour).padStart(2,'0')}:00:00Z`;
+  const existing=data.frames?.findIndex((frame:any)=>new Date(frame.time).toISOString()===targetTime) ?? -1;
+  const ready=existing>=0?Promise.resolve(null):raw?rawLoad(nextDate,nextHour,level,controller.signal):Promise.reject(Error('下一張原始風場尚未載入'));
+  const t=setTimeout(async()=>{try{const fetched=await ready;if(!current)return;if(existing<0&&(!fetched?.frames?.some((frame:any)=>new Date(frame.time).toISOString()===targetTime)))throw Error('下一張風場資料沒有包含所需時間，請稍後重試');setError('');setHour(nextHour);setDate(nextDate)}catch(e){if(current){setPlay(false);setError(e instanceof Error?`動畫暫停：${e.message}`:'動畫暫停：下一張風場未到齊')}}},existing>=0?650:0);
   ready.catch(()=>{});return()=>{current=false;clearTimeout(t);controller.abort()};
  },[play,data,loading,hour,date,limits.max,limits.min,raw,level,rangeStart,rangeEnd]);
  const factor=units==='kmh'?3.6:units==='kt'?1.943844:1,unit=units==='kmh'?'公里／時':units==='kt'?'節':'公尺／秒';

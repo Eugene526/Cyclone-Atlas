@@ -574,7 +574,7 @@ export default function Observatory() {
             </a>
           </aside>
         )}
-        {thermal&&<article className="cloud-temperature-popup" style={{left:Math.max(8,Math.min(thermal.popupPosition.width-232,thermal.popupPosition.x+12)),top:Math.max(8,Math.min(thermal.popupPosition.height-190,thermal.popupPosition.y-60))}} aria-label="雲頂亮溫資訊"><button className="icon-button close" aria-label="關閉雲頂溫度" onClick={()=>setThermal(null)}><X size={16}/></button><small>OTT · 紅外線亮溫估計</small><strong>{thermal.loading?'讀取中…':thermal.error?'資料未取得':thermal.temperature.toFixed(1)+' °C'}</strong><p>{thermal.lat.toFixed(2)}° · {thermal.lon.toFixed(2)}°</p><p>{new Date(thermal.time).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})} · UTC+8</p><footer>{thermal.error||'依影像編碼估計，非原始定標值；有雲時近似雲頂溫度，晴空可能為地表亮溫。'}</footer></article>}
+        {thermal&&<article className="cloud-temperature-popup" style={{left:Math.max(8,Math.min(thermal.popupPosition.width-232,thermal.popupPosition.x+12)),top:Math.max(8,Math.min(thermal.popupPosition.height-190,thermal.popupPosition.y-60))}} aria-label="雲頂亮溫資訊"><button className="icon-button close" aria-label="關閉雲頂溫度" onClick={()=>setThermal(null)}><X size={16}/></button><small>OTT · 亮溫估計值</small><strong>{thermal.loading?'讀取中…':thermal.error?'資料未取得':thermal.temperature.toFixed(1)+' °C'}</strong><p>{thermal.lat.toFixed(2)}° · {thermal.lon.toFixed(2)}°</p><p>{new Date(thermal.time).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})} · UTC+8</p><footer>{thermal.error||'估計值，非原始定標溫度；有雲時近似雲頂溫度，晴空可能為地表亮溫。'}</footer></article>}
         {pointInfo && (
           <PointDetails data={pointInfo} onClose={() => setPointInfo(null)} />
         )}
