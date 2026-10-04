@@ -1257,6 +1257,6 @@ input[type="range"] {
 .cloud-temperature-popup{position:absolute;z-index:12;width:224px;max-width:calc(100vw - 16px);padding:13px;background:#102332f5;color:#e4f2ef;border:1px solid #adcfc34a;border-radius:12px;box-shadow:0 8px 30px #0005}.cloud-temperature-popup .close{position:absolute;top:5px;right:5px;width:27px;height:27px}.cloud-temperature-popup small{display:block;font-size:10px;color:#b4d9cc;padding-right:22px}.cloud-temperature-popup strong{display:block;font-size:25px;margin:8px 0}.cloud-temperature-popup p{font-size:10px;margin:5px 0}.cloud-temperature-popup footer{font-size:10px;color:#acc3cd;line-height:1.5;margin-top:8px}
 @media(max-width:720px){.cloud-temperature-popup{width:210px;padding:11px}.cloud-temperature-popup strong{font-size:23px}}
 
-.brand-logo-link{width:205px;flex:0 0 auto;display:block;line-height:0}
+.brand-logo-link{width:205px;flex:0 0 auto;display:block;line-height:0;padding:3px 8px;border-radius:9px;background:linear-gradient(135deg,#f4fbff,#d9edf5);box-shadow:0 0 0 1px #b6e3e455,0 2px 10px #0003}
 .brand-logo{display:block;width:100%;height:auto;max-height:70px;object-fit:contain;border-radius:4px;background:transparent}
 @media(max-width:720px){.brand-logo-link{width:142px}.brand-logo{max-height:48px}}
