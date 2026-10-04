@@ -207,6 +207,7 @@ export default function Observatory() {
           <small>西北太平洋 · HIMAWARI</small>
         </div>
         <div className="header-actions">
+          <a href="/wind" style={{color:"#b9e7dd",fontSize:12,textDecoration:"none",whiteSpace:"nowrap"}}>全球風場 ↗</a>
           <span className={"live-tag " + (age > 60 ? "stale" : "")}>
             <i />
             {latest ? (age > 60 ? "資料延遲" : "持續觀測") : "連線中"}
