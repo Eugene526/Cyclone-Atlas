@@ -2,7 +2,7 @@
 
 透過衛星雲圖、颱風路徑與全球風場，探索天氣系統的變化。介面使用繁體中文，適合想觀察颱風、比較預報或查看不同高度風場的使用者。
 
-[開啟網站](https://cyclone-atlas-eugene.claire828.chatgpt.site) · [衛星觀測](https://cyclone-atlas-eugene.claire828.chatgpt.site/) · [全球風場](https://cyclone-atlas-eugene.claire828.chatgpt.site/wind)
+[開啟網站](https://cyclone-atlas-one.vercel.app/) · [衛星觀測](https://cyclone-atlas-one.vercel.app/) · [全球風場](https://cyclone-atlas-one.vercel.app/wind)
 
 ## 衛星觀測
 
