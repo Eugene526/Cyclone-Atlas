@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {decodeBUFR,toTracks} from '../lib/decode-bufr.mjs';
+const fixture=process.argv[2];if(!fixture)throw Error('Provide a downloaded ECMWF BUFR fixture');const b=fs.readFileSync(fixture);const d=decodeBUFR(b),tracks=toTracks(d);assert(d.length>0);assert(tracks.length>0);for(const t of tracks)for(const p of t.points){assert(Number.isFinite(p.lat)&&Number.isFinite(p.lon));assert(Math.abs(p.lat)<=90&&Math.abs(p.lon)<=180);assert(p.pressure===null||p.pressure>0);assert(p.windMs===null||p.windMs>=0);assert(p.radii.length===3)}assert.throws(()=>decodeBUFR(b.subarray(0,100)));assert.throws(()=>decodeBUFR(new Uint8Array([0,1,2,3,4])));console.log(JSON.stringify({result:'PASS',messages:d.length,tracks:tracks.length,points:tracks.reduce((n,t)=>n+t.points.length,0),negativeControls:['truncated','non-BUFR']}));
