@@ -247,7 +247,17 @@ export default function WeatherMap(p: {
             const logo = new Image();
             logo.src = "/images/typhoon-observatory-logo.png";
             await logo.decode();
-            ctx.drawImage(logo, 38, 2071, 260, 86);
+            const logoBackground = ctx.createLinearGradient(38, 2074, 298, 2154);
+            logoBackground.addColorStop(0, "#f4fbff");
+            logoBackground.addColorStop(1, "#d9edf5");
+            ctx.fillStyle = logoBackground;
+            ctx.beginPath();
+            ctx.roundRect(30, 2074, 276, 80, 9);
+            ctx.fill();
+            ctx.strokeStyle = "#b6e3e4";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.drawImage(logo, 48, 2074, 240, 80);
             ctx.fillStyle = "white";
             ctx.font = "28px sans-serif";
             ctx.fillText(
