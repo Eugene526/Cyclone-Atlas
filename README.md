@@ -58,3 +58,11 @@ node tests/data-check.mjs /path/to/ecmwf-tf.bufr
 參考「颱風衛星圖 來源：雞蛋糕」所有 Python 程式的取圖、雲圖合成、OTT、晝夜選擇與動畫流程；沿用提供的 Natural Earth 海岸線。MP4/PNG 是視覺參考，未把 54 GB 影片/地形資料全部上傳網站；arial.ttf 未重新發布。舊 ty_track.txt 不是最新預報，不混入即時模式。衛星原始資料不經生成式 AI 重繪。
 
 © ECMWF（CC BY 4.0，https://doi.org/10.21957/open-data）；NICT/JMA；NOAA/ECCC/FNMOC；Google Weather Lab；Natural Earth（public domain）。研究觀測工具，不取代官方防災警報。
+
+### 2026-10-04 更新
+- 全球地圖自由移動；歐洲／北美快捷範圍。向日葵不可觀測區保留底圖，不延展雲圖。
+- 衛星最大範圍延至東經 221°；原始 GEOS 圖磚與地球橢球遮罩保留有效觀測。
+- 系集路徑逐點解纏經度，消除跨 180° 橫線；未選中線寬 0.8px、22% 不透明度、低飽和色。
+- 官方颱風卡可直接開啟日本氣象廳詳細資料；官方資料與模式預測分別標示。
+- 顯著標示衛星觀測年月日時間 UTC+8；側欄收起仍持續更新模式。
+- OTT 靜態縮放最高使用來源 10d B13（全圓盤 5500px），不是人工超解析度。

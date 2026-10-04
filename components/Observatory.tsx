@@ -28,7 +28,9 @@ const regions = [
   { name: "臺灣與鄰近海域", box: [115, 18, 129, 29] },
   { name: "日本與琉球", box: [122, 22, 149, 43] },
   { name: "菲律賓海", box: [120, 5, 153, 27] },
-  { name: "衛星最大覆蓋範圍", box: [80, -55, 180, 60] },
+  { name: "衛星最大覆蓋範圍", box: [60, -70, 221, 70] },
+  { name: "歐洲", box: [-15, 30, 40, 65] },
+  { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
 export default function Observatory() {
   const [pointInfo, setPointInfo] = useState<any>(null);
@@ -61,6 +63,7 @@ export default function Observatory() {
   const api = useRef<MapAPI | null>(null),
     liveRef = useRef(live);
   liveRef.current = live;
+  const withinSatellite = Math.cos(center[1] * Math.PI / 180) * Math.cos((center[0] - 140.7) * Math.PI / 180) > 6378137 / 42164160;
   const night = time ? isNight(time, center[0], center[1]) : false,
     effective = mode === "auto" ? (night ? "bw" : "rgb") : mode;
   async function refresh() {
@@ -176,7 +179,7 @@ export default function Observatory() {
           storms={storms}
           wind={wind}
           forecast={forecast}
-          models={models.filter((m) => selected.includes(m.id))}
+          models={models.filter((m) => selected.includes(m.id)).map(m => ({...m, color: ({ifs: "#91adb5", aifs: "#a59bb7", gefs: "#b9ad91", aigefs: "#b49ba9", cmce: "#94b29f", fens: "#9ba9bc", wnv3: "#b99ca5", google: "#95a9bf", fnv3: "#bbaa97"} as Record<string,string>)[m.id]}))}
           onPoint={setPointInfo}
           onLoaded={() => setFrameReady(true)}
           onLoading={() => setFrameReady(false)}
@@ -188,9 +191,9 @@ export default function Observatory() {
           <div className="eyebrow">
             <span /> EARTH OBSERVATION
           </div>
-          <h1>西太平洋・全域觀測</h1>
+          <h1>{withinSatellite ? "西太平洋・全域觀測" : "全球地圖・自由瀏覽"}</h1>
           <p>
-            {time ? `${tw(time)} 臺灣時間` : "取得最新觀測中"} <span>｜</span>{" "}
+            {time ? `衛星觀測 ${new Date(new Date(time).getTime() + 8 * 3600000).getUTCFullYear()}/${tw(time)} · UTC+8（臺灣）` : "取得最新觀測中"} <span>｜</span>{" "}
             {effective === "ott"
               ? "紅外線色調強化"
               : effective === "rgb"
@@ -198,6 +201,7 @@ export default function Observatory() {
                 : "黑白紅外線"}
           </p>
         </div>
+        {!withinSatellite && <div className="coverage-note">地圖中心位於向日葵衛星觀測範圍外；此區顯示底圖，不延展或補造雲圖。</div>}
         <div className="mode-panel">
           <div className="section-label">
             <Satellite size={14} />
@@ -296,8 +300,8 @@ export default function Observatory() {
             <span>自適應圖磚</span>
           </div>
         </div>
-        {panel && (
-          <aside className="sidebar">
+        {(
+          <aside className="sidebar" style={{display: panel ? undefined : "none"}}>
             <div className="panel-heading">
               <div>
                 <Layers size={16} />
@@ -403,6 +407,7 @@ export default function Observatory() {
                       className="storm-card"
                       key={st.id}
                       onClick={() => {
+                        if (a) setPointInfo({kind: "jma", name: title?.name?.en, point: a, spec: st.specifications?.find((v: any) => v.validtime?.UTC === a.validtime?.UTC), issue: title?.issue?.UTC});
                         if (a?.center)
                           api.current?.region([
                             a.center[1] - 7,
@@ -472,7 +477,7 @@ export default function Observatory() {
                 setStatus={setModelStatus}
               />
               <p className="source-note">
-                細線各代表一個系集成員，不是官方颱風路徑。不同模式起報時間可能不同。
+                淡色細線各代表一個系集成員；點選後突出該路徑與預報點。不同模式起報時間可能不同。
               </p>
             </section>
             <a
@@ -682,15 +687,15 @@ function ModelPanel(p: any) {
   const [busy, setBusy] = useState<string[]>([]),
     [errors, setErrors] = useState<Record<string, string>>({});
   const configs = [
-    { id: "ifs", label: "IFS ENS", color: "#61d8ee" },
-    { id: "aifs", label: "AIFS ENS", color: "#ba9dff" },
-    { id: "gefs", label: "GEFS", color: "#f3c775" },
-    { id: "aigefs", label: "AIGEFS", color: "#e790bd" },
-    { id: "cmce", label: "GEPS", color: "#7bde9a" },
-    { id: "fens", label: "FNMOC ENS", color: "#9db1ec" },
-    { id: "wnv3", label: "WeatherNext 3", color: "#ff91ab" },
-    { id: "google", label: "WeatherNext Cyclones", color: "#8aafff" },
-    { id: "fnv3", label: "FNV3P2", color: "#ffbe88" },
+    { id: "ifs", label: "IFS ENS", color: "#91adb5" },
+    { id: "aifs", label: "AIFS ENS", color: "#a59bb7" },
+    { id: "gefs", label: "GEFS", color: "#b9ad91" },
+    { id: "aigefs", label: "AIGEFS", color: "#b49ba9" },
+    { id: "cmce", label: "GEPS", color: "#94b29f" },
+    { id: "fens", label: "FNMOC ENS", color: "#9ba9bc" },
+    { id: "wnv3", label: "WeatherNext 3", color: "#b99ca5" },
+    { id: "google", label: "WeatherNext Cyclones", color: "#95a9bf" },
+    { id: "fnv3", label: "FNV3P2", color: "#bbaa97" },
   ];
   async function load(id: string, enable = false) {
     if (busy.includes(id)) return;
@@ -857,7 +862,7 @@ function PointDetails({
         {d.name || "氣旋"} <small>{j ? "" : d.track.member}</small>
       </h3>
       <p className="point-time">
-        {date ? tw(date) : "—"} 臺灣時間 · +{j ? p.advancedHours : p.lead}h
+        {date ? tw(date) : "—"} 臺灣時間 UTC+8 · +{j ? p.advancedHours : p.lead}h
       </p>
       <div className="point-stats">
         <div>
@@ -926,7 +931,7 @@ function PointDetails({
       )}
       {!j && (
         <p className="source-note">
-          NEQ
+          此處為該模式的預測，不是日本氣象廳官方預報。NEQ
           依序為東北／東南／西南／西北；其他方向以原始代碼為準。各機構風速平均期間不同，不宜直接混比。
         </p>
       )}

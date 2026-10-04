@@ -23,6 +23,7 @@ import { circular } from "ol/geom/Polygon";
 import { defaults as controls, ScaleLine } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
 import { imagery } from "@/lib/imagery";
+import { unwrapTrack } from "@/lib/track-geometry.mjs";
 import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 proj4.defs(
@@ -91,10 +92,9 @@ export default function WeatherMap(p: {
       view: new View({
         center: fromLonLat([137, 22]),
         zoom: 3.8,
-        minZoom: 3,
+        minZoom: 1.5,
         maxZoom: 10,
-        extent: transformExtent([75, -60, 180, 65], "EPSG:4326", "EPSG:3857"),
-        constrainOnlyCenter: false,
+        multiWorld: true,
       }),
       controls: controls({ zoom: false, rotate: false }).extend([
         new ScaleLine(),
@@ -120,7 +120,10 @@ export default function WeatherMap(p: {
         const track = chosen.track;
         const closest = track.points.reduce((a: any, b: any) => {
           const dist = (p: any) => {
-            const px = m.getPixelFromCoordinate(fromLonLat([p.lon < 0 ? p.lon + 360 : p.lon, p.lat]));
+            const coord = fromLonLat([p.lon, p.lat]);
+            const world = 40075016.68557849;
+            coord[0] += Math.round((e.coordinate[0] - coord[0]) / world) * world;
+            const px = m.getPixelFromCoordinate(coord);
             return Math.hypot(px[0] - e.pixel[0], px[1] - e.pixel[1]);
           };
           return dist(b) < dist(a) ? b : a;
@@ -128,7 +131,7 @@ export default function WeatherMap(p: {
         selection.current!.clear();
         const line = new Feature(
           new LineString(
-            track.points.map((v: any) => fromLonLat([v.lon < 0 ? v.lon + 360 : v.lon, v.lat])),
+            unwrapTrack(track.points).map((v: number[]) => fromLonLat(v)),
           ),
         );
         line.setStyle(
@@ -480,10 +483,10 @@ export default function WeatherMap(p: {
         if (track.points?.length > 1) {
           const line = add(
             new LineString(
-              track.points.map((v: any) => fromLonLat([v.lon < 0 ? v.lon + 360 : v.lon, v.lat])),
+              unwrapTrack(track.points).map((v: number[]) => fromLonLat(v)),
             ),
-            (model.color || "#65dce8") + "88",
-            1.2,
+            (model.color || "#8faeb8") + "38",
+            0.8,
           );
           line.set("info", {
             kind: "model",
