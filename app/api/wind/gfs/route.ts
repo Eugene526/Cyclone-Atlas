@@ -1,9 +1,9 @@
 import {gfsUrl,windRanges,formatRun,runDate} from '@/lib/gfs-raw.mjs';
 import {WIND_LEVELS} from '@/lib/wind-data.mjs';
-const memory=new Map<string,{until:number,response:Response}>();
-const pending=new Map<string,Promise<Response>>();
+const memory=new Map<string,{until:number,body:ArrayBuffer,type:string}>();
+const pending=new Map<string,Promise<{body:ArrayBuffer,type:string}>>();
 async function cached(url:string,range?:string){
- const key=url+'|'+(range||''),hit=memory.get(key);if(hit&&hit.until>Date.now())return hit.response.clone();
+ const key=url+'|'+(range||''),hit=memory.get(key);if(hit&&hit.until>Date.now())return new Response(hit.body.slice(0),{headers:{'Content-Type':hit.type,'Cache-Control':'public,max-age=86400'}});
  // Cache immutable run/field bytes at the edge, shared by all viewers.
  const cache=(globalThis as any).caches?.default;
  const cacheKey=new Request(url+(range?'?fieldrange='+range.replace(/[^0-9-]/g,''):''));
@@ -14,10 +14,10 @@ async function cached(url:string,range?:string){
  if(range){const expected=range.replace('bytes=','');if(!r.headers.get('content-range')?.startsWith('bytes '+expected+'/'))throw Error('NOAA 位元組範圍不符');}
  const body=await r.arrayBuffer();if(body.byteLength>8000000)throw Error('來源欄位超出大小限制');
  const response=new Response(body,{headers:{'Content-Type':range?'application/octet-stream':'text/plain','Cache-Control':'public,max-age=86400'}});
- memory.set(key,{until:Date.now()+3600000,response});if(memory.size>12)memory.delete(memory.keys().next().value!);
- if(cache)await cache.put(cacheKey,response.clone());return response;
+ memory.set(key,{until:Date.now()+3600000,body,type:range?'application/octet-stream':'text/plain'});if(memory.size>12)memory.delete(memory.keys().next().value!);
+ if(cache)await cache.put(cacheKey,response);return {body,type:range?'application/octet-stream':'text/plain'};
  })());
- try{return (await pending.get(key))!.clone()}finally{pending.delete(key)}
+ try{const item=(await pending.get(key))!;return new Response(item.body.slice(0),{headers:{'Content-Type':item.type,'Cache-Control':'public,max-age=86400'}})}finally{pending.delete(key)}
 }
 let latest:{until:number,run:string}|null=null;
 export async function GET(req:Request){
