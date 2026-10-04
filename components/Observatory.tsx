@@ -22,19 +22,17 @@ import {
   Focus,
 } from "lucide-react";
 import WeatherMap, { MapAPI } from "./WeatherMap";
-import { globalFrame, GLOBAL_START } from "@/lib/global-satellite.mjs";
 import { Mode, tw, isNight } from "@/lib/satellite";
 const regions = [
   { name: "西北太平洋", box: [95, -5, 180, 55] },
   { name: "臺灣與鄰近海域", box: [115, 18, 129, 29] },
   { name: "日本與琉球", box: [122, 22, 149, 43] },
   { name: "菲律賓海", box: [120, 5, 153, 27] },
-  { name: "全球衛星總覽", box: [-180, -80, 180, 80] },
+  { name: "衛星最大覆蓋範圍", box: [60, -70, 221, 70] },
   { name: "歐洲", box: [-15, 30, 40, 65] },
   { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
 export default function Observatory() {
-  const [global, setGlobal] = useState(true);
   const [pointInfo, setPointInfo] = useState<any>(null);
   const [frameReady, setFrameReady] = useState(false),
     [rangeEnd, setRangeEnd] = useState(""),
@@ -51,8 +49,8 @@ export default function Observatory() {
     [wind, setWind] = useState(true),
     [forecast, setForecast] = useState(true),
     [play, setPlay] = useState(false),
-    [hours, setHours] = useState(24),
-    [step, setStep] = useState(180),
+    [hours, setHours] = useState(3),
+    [step, setStep] = useState(20),
     [panel, setPanel] = useState(
       typeof window !== "undefined" && window.innerWidth > 1024,
     ),
@@ -70,10 +68,10 @@ export default function Observatory() {
   liveRef.current = live;
   const withinSatellite = Math.cos(center[1] * Math.PI / 180) * Math.cos((center[0] - 140.7) * Math.PI / 180) > 6378137 / 42164160;
   const night = time ? isNight(time, center[0], center[1]) : false,
-    effective = mode === "auto" ? (global ? "bw" : night ? "bw" : "rgb") : mode;
+    effective = mode === "auto" ? (night ? "bw" : "rgb") : mode;
   async function refresh() {
     try {
-      const r = await fetch(global ? "/api/global-satellite" : "/api/satellite");
+      const r = await fetch("/api/satellite");
       const d: any = await r.json();
       if (!r.ok) throw Error(d.error);
       setLatest(d.time);
@@ -108,7 +106,7 @@ export default function Observatory() {
     refresh();
     const t = setInterval(refresh, 60000);
     return () => clearInterval(t);
-  }, [global]);
+  }, []);
   useEffect(() => {
     if (!play || !rangeEnd || !frameReady) return;
     const t = setTimeout(() => {
@@ -130,14 +128,12 @@ export default function Observatory() {
     if (!value) return;
     const picked = new Date(value + "+08:00");
     picked.setUTCMinutes(Math.floor(picked.getUTCMinutes() / 10) * 10, 0, 0);
-    if(global) picked.setTime(Date.parse(globalFrame(picked.toISOString())));
     const pickedTime = picked.getTime();
     const latestTime = latest ? new Date(latest).getTime() : pickedTime;
     if (pickedTime > latestTime) {
       setStatus("所選時間晚於最新衛星影像，請選擇較早的時刻");
       return;
     }
-    if(global && pickedTime < Date.parse(GLOBAL_START)){setStatus("全球 IR 歷史從 2021/06/06 23:00（臺灣）起提供");return;}
     const start = picked.toISOString();
     setLive(false);
     setPlay(false);
@@ -208,12 +204,12 @@ export default function Observatory() {
         <div className="header-rule" />
         <div className="workspace">
           <span>衛星觀測</span>
-          <small>全球多衛星 · GEO RING</small>
+          <small>西北太平洋 · HIMAWARI</small>
         </div>
         <div className="header-actions">
-          <span className={"live-tag " + (age > (global ? 240 : 60) ? "stale" : "")}>
+          <span className={"live-tag " + (age > 60 ? "stale" : "")}>
             <i />
-            {latest ? (age > (global ? 240 : 60) ? "資料延遲" : "持續觀測") : "連線中"}
+            {latest ? (age > 60 ? "資料延遲" : "持續觀測") : "連線中"}
           </span>
           <button
             className="icon-button"
@@ -233,7 +229,6 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
-          global={global}
           time={time}
           mode={effective}
           playing={play}
@@ -264,32 +259,28 @@ export default function Observatory() {
           <div className="eyebrow">
             <span /> EARTH OBSERVATION
           </div>
-          <h1>{global ? "全球・多衛星觀測" : withinSatellite ? "西太平洋・全域觀測" : "全球地圖・自由瀏覽"}</h1>
+          <h1>{withinSatellite ? "西太平洋・全域觀測" : "全球地圖・自由瀏覽"}</h1>
           <p>
-            {time ? `衛星觀測 ${new Date(new Date(time).getTime() + 8 * 3600000).getUTCFullYear()}/${tw(global ? globalFrame(time) : time)} · UTC+8（臺灣）` : "取得最新觀測中"} <span>｜</span>{" "}
+            {time ? `衛星觀測 ${new Date(new Date(time).getTime() + 8 * 3600000).getUTCFullYear()}/${tw(time)} · UTC+8（臺灣）` : "取得最新觀測中"} <span>｜</span>{" "}
             {effective === "ott"
               ? "紅外線色調強化"
               : effective === "rgb"
-                ? global ? "多衛星自然色合成" : "真實色合成"
+                ? "真實色合成"
                 : "黑白紅外線"}
           </p>
         </div>
-        {!global && !withinSatellite && <div className="coverage-note">地圖中心位於向日葵衛星觀測範圍外；此區顯示底圖，不延展或補造雲圖。</div>}
+        {!withinSatellite && <div className="coverage-note">地圖中心位於向日葵衛星觀測範圍外；此區顯示底圖，不延展或補造雲圖。</div>}
         <div className="mode-panel">
           <div className="section-label">
             <Satellite size={14} />
             衛星影像
           </div>
-          <select aria-label="衛星資料範圍" value={global ? "global" : "himawari"} onChange={e=>{const g=e.target.value==="global";setGlobal(g);setPlay(false);setLive(true);setAnimationStart("");setStep(g?180:20);setHours(g?24:3);}} style={{width:"100%",marginBottom:8}}>
-            <option value="global">全球多衛星合成（每 3 小時）</option>
-            <option value="himawari">向日葵高解析（每 10 分鐘）</option>
-          </select>
           <div className="mode-tabs">
             {(
               [
                 ["auto", "自動"],
                 ["ott", "OTT 強化"],
-                ["rgb", global ? "自然色" : "真實色"],
+                ["rgb", "真實色"],
                 ["bw", "黑白"],
               ] as [Mode, string][]
             ).map(([id, label]) => (
@@ -304,7 +295,7 @@ export default function Observatory() {
           </div>
           <div className="mode-foot">
             <span>
-              {global ? (effective === "rgb" ? "多衛星自然色（非全域真實色）；夜間請用紅外線" : "共同灰階強化；極區與來源缺測不補造") : mode === "auto"
+              {mode === "auto"
                 ? night
                   ? "☾ 中心點入夜 · 已切換紅外線"
                   : "☀ 中心點日間 · 真實色"
@@ -312,7 +303,7 @@ export default function Observatory() {
                   ? "真實色需日照；夜間區域偏暗"
                   : "B13 · 10.4 μm 紅外線"}
             </span>
-            <span>{global ? "多衛星" : "AHI"}</span>
+            <span>AHI</span>
           </div>
         </div>
         <div className="map-controls">
@@ -345,13 +336,13 @@ export default function Observatory() {
         <div className="map-legend">
           <div className="legend-title">
             {effective === "ott"
-              ? global ? "OTT 視覺強化 · 非溫度刻度" : "雲頂亮溫 · 約 °C"
+              ? "雲頂亮溫 · 約 °C"
               : effective === "bw"
                 ? "紅外線 · 亮度強化"
-                : global ? "多衛星自然色合成" : "日間真實色合成"}
-            <span>{global ? "GOES · METEOSAT · HIMAWARI" : "HIMAWARI-9"}</span>
+                : "日間真實色合成"}
+            <span>HIMAWARI-9</span>
           </div>
-          {effective === "ott" && !global ? (
+          {effective === "ott" ? (
             <>
               <div className="thermal-gradient" />
               <div className="legend-ticks">
@@ -367,7 +358,7 @@ export default function Observatory() {
             </>
           ) : (
             <p>
-              {global && effective === "ott" ? "沿用 OTT 分段色彩；全球產品為灰階顯示碼，非定量雲頂溫度。" : effective === "bw"
+              {effective === "bw"
                 ? "亮白較冷，深灰較暖；非可見光照片。"
                 : "保留雲系紋理與地表色彩；夜側無日照。"}
             </p>
@@ -609,7 +600,7 @@ export default function Observatory() {
                 <option value={1}>時間窗 1 小時</option>
                 <option value={3}>時間窗 3 小時</option>
                 <option value={6}>時間窗 6 小時</option>
-                <option value={12}>時間窗 12 小時</option><option value={24}>時間窗 24 小時</option><option value={72}>時間窗 3 天</option>
+                <option value={12}>時間窗 12 小時</option>
               </select>
               <button
               className={"latest-button " + (live ? "on" : "")}
@@ -645,7 +636,7 @@ export default function Observatory() {
               className="step-button"
               title="前一張"
               disabled={!time}
-              onClick={() => jump(global ? -180 : -10)}
+              onClick={() => jump(-10)}
             >
               <ChevronLeft size={18} />
             </button>
@@ -656,7 +647,7 @@ export default function Observatory() {
                 rangeEnd ? new Date(rangeEnd).getTime() - hours * 3600000 : 0
               }
               max={rangeEnd ? new Date(rangeEnd).getTime() : 100}
-              step={global ? 10800000 : 600000}
+              step={600000}
               value={time ? new Date(time).getTime() : 0}
               onChange={(e) => {
                 const selectedTime = new Date(+e.target.value).toISOString();
@@ -670,7 +661,7 @@ export default function Observatory() {
               className="step-button"
               title="後一張"
               disabled={!time}
-              onClick={() => jump(global ? 180 : 10)}
+              onClick={() => jump(10)}
             >
               <ChevronRight size={18} />
             </button>
@@ -678,7 +669,7 @@ export default function Observatory() {
               className="datetime"
               aria-label="指定衛星日期時間（臺灣）"
               type="datetime-local"
-              step={global ? "10800" : "600"}
+              step="600"
               max={latest ? new Date(new Date(latest).getTime() + 8 * 3600000).toISOString().slice(0, 16) : undefined}
               value={
                 time
@@ -695,18 +686,18 @@ export default function Observatory() {
               <i />
               {status}
             </span>
-            <span>{global ? "全球合成每 3 小時 · 每分鐘檢查更新" : "每 10 分鐘觀測 · 每分鐘檢查更新"}</span>
+            <span>每 10 分鐘觀測 · 每 1 分鐘檢查更新</span>
             <label>
               動畫間隔{" "}
               <select
                 aria-label="動畫取樣間隔"
                 value={step}
-                onChange={(e) => setStep(global ? Math.max(180, +e.target.value) : +e.target.value)}
+                onChange={(e) => setStep(+e.target.value)}
               >
                 <option value={10}>10 分鐘</option>
                 <option value={20}>20 分鐘</option>
                 <option value={30}>30 分鐘</option>
-                <option value={60}>60 分鐘</option><option value={180}>3 小時（全球）</option>
+                <option value={60}>60 分鐘</option>
               </select>
             </label>
           </div>
@@ -721,7 +712,7 @@ export default function Observatory() {
               <input
                 aria-label="手機自訂衛星日期時間（臺灣）"
                 type="datetime-local"
-                step={global ? "10800" : "600"}
+                step="600"
                 max={latest ? new Date(new Date(latest).getTime() + 8 * 3600000).toISOString().slice(0, 16) : undefined}
                 value={time ? new Date(new Date(time).getTime() + 8 * 3600000).toISOString().slice(0, 16) : ""}
                 onChange={(e) => chooseDateTime(e.target.value)}
@@ -734,16 +725,16 @@ export default function Observatory() {
                   <option value={1}>1 小時</option>
                   <option value={3}>3 小時</option>
                   <option value={6}>6 小時</option>
-                  <option value={12}>12 小時</option><option value={24}>24 小時</option><option value={72}>3 天</option>
+                  <option value={12}>12 小時</option>
                 </select>
               </label>
               <label>
                 <span>播放間隔</span>
-                <select aria-label="手機動畫播放間隔" value={step} onChange={(e) => setStep(global ? Math.max(180, +e.target.value) : +e.target.value)}>
+                <select aria-label="手機動畫播放間隔" value={step} onChange={(e) => setStep(+e.target.value)}>
                   <option value={10}>每 10 分</option>
                   <option value={20}>每 20 分</option>
                   <option value={30}>每 30 分</option>
-                  <option value={60}>每 60 分</option><option value={180}>每 3 小時（全球）</option>
+                  <option value={60}>每 60 分</option>
                 </select>
               </label>
             </div>
@@ -765,7 +756,7 @@ export default function Observatory() {
             <div className="eyebrow">DATA & METHODOLOGY</div>
             <h2>每一張雲圖，都有來源。</h2>
             <p>
-              全球模式採用 EUMETSAT EUMETView 多衛星合成，包含 GOES、Meteosat 與向日葵，每 3 小時更新；來源已處理多衛星拼接。全球 IR 歷史從 2021/06/06 起依來源可用性提供。極區盲區與缺測保持透明，不以其他時間的雲圖假補。全球 OTT 沿用相同色彩樣式，但由顯示灰階轉色，沒有定量溫度刻度。高解析西太平洋模式採用日本向日葵衛星 NICT
+              採用日本向日葵衛星 NICT
               圖磚，依地球同步衛星投影重投影至可移動地圖。白色海岸線使用 Natural
               Earth。
             </p>
@@ -801,7 +792,7 @@ export default function Observatory() {
             >
               NICT 衛星資料 ↗
             </a>{" "}
-            · <a href="https://view.eumetsat.int/" target="_blank" rel="noreferrer">EUMETSAT 全球衛星資料 ↗</a> ·{" "}
+            ·{" "}
             <a
               href="https://data.ecmwf.int/forecasts/"
               target="_blank"
