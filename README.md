@@ -16,6 +16,8 @@ npm run dev
 - NICT Himawari-9：D531106 真實色、FULL_24h/B13 紅外線；每分鐘查詢 latest.json。每張原始觀測約 10 分鐘。歷史留存依來源，並非無限歷史庫。
 - 日本氣象廳：targetTc.json、forecast.json、specifications.json；最新官方分析與預報。歷史衛星時刻不冒充歷史 JMA 分析。
 - ECMWF IFS ENS / AIFS ENS：ECMWF 公開 GCP 鏡像，BUFR4 tropical cyclone tracks。
+- 全球風場直接讀取模式／機構發布的原始 GRIB2 或原始 Zarr 格點，不經 Open-Meteo 或其他聚合氣象 API：NOAA GFS、ECMWF IFS、ECMWF AIFS Single、NOAA GEFS、NOAA AIGEFS、ECCC GEPS、DWD ICON、JMA GSM，以及 Google 公開 ARCO-ERA5 Zarr 再分析。GRIB/Zarr 原始欄位在瀏覽器端解碼；只轉換向量格點以供繪圖，標註的原生格距不會因放大或插值而變高。
+- IFS/AIFS ENS 風場平均與 WeatherNext 2 暫不提供選取：目前未有本網站已驗證、公開免登入的完整原始 u/v 格點管線；WeatherNext 2 原始 Zarr 需 Google 核准。先前 Open-Meteo 的逐點 API 管線已停用，缺少原始來源時不做代替或靜默切換。
 - NOAA GEFS / AIGEFS、ECCC GEPS、FNMOC ENS：NOAA NOMADS ens_tracker 的各成員 ATCF 檔。
 - Google WeatherNext 3（下載代碼 WNV3）、WeatherNext Cyclones（OPER）、FNV3P2：Weather Lab 公開下載端點。不是把其他模式重新命名成 Google。研究性質與資料使用條款：https://developers.google.com/weathernext/guides/weatherlab
 

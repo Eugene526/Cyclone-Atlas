@@ -9,3 +9,9 @@ test('reanalysis and forecast dates never overlap or forecast three months ahead
 test('wind palette clamps to physical display scale',()=>{assert.deepEqual(windColor(-10),windColor(0));assert.deepEqual(windColor(100),windColor(75));});
 
 test('three-calendar-month window clamps month end',()=>{assert.equal(timeLimits('history',null,new Date('2026-05-31T00:00Z')).min,'2026-02-28')});
+test('every selectable forecast uses a verified first-party raw pipeline',()=>{
+ const selectable=WIND_MODELS.filter(m=>m.api);
+ assert.ok(selectable.length>0);
+ assert.ok(selectable.every(m=>m.raw===true),selectable.filter(m=>m.raw!==true).map(m=>m.id).join(','));
+ assert.ok(WIND_MODELS.filter(m=>!m.api).every(m=>m.reason));
+});
