@@ -689,8 +689,8 @@ function ModelPanel(p: any) {
   const configs = [
     { id: "gfs", label: "GFS", color: "#40d8ff" },
     { id: "ecmwf", label: "ECMWF IFS HRES", color: "#ffad42" },
-    { id: "ifs", label: "IFS ENS", color: "#91adb5" },
-    { id: "aifs", label: "AIFS ENS", color: "#a59bb7" },
+    { id: "ifs", label: "ECMWF IFS 系集", color: "#61d8ee" },
+    { id: "aifs", label: "ECMWF AIFS 系集", color: "#ba9dff" },
     { id: "gefs", label: "GEFS", color: "#b9ad91" },
     { id: "aigefs", label: "AIGEFS", color: "#b49ba9" },
     { id: "cmce", label: "GEPS", color: "#94b29f" },
@@ -699,6 +699,19 @@ function ModelPanel(p: any) {
     { id: "google", label: "WeatherNext Cyclones", color: "#95a9bf" },
     { id: "fnv3", label: "FNV3P2", color: "#bbaa97" },
   ];
+  const ecmwfEnsIds = ["ifs", "aifs"];
+  const ecmwfEnsReady = ecmwfEnsIds.filter((id) =>
+    p.models.some((m: any) => m.id === id),
+  ).length;
+  const toggleEcmwfEns = () => {
+    const allOn = ecmwfEnsIds.every((id) => p.selected.includes(id));
+    if (allOn) {
+      p.setSelected((all: string[]) => all.filter((id) => !ecmwfEnsIds.includes(id)));
+      return;
+    }
+    ecmwfEnsIds.forEach((id) => load(id, true));
+    p.setSelected((all: string[]) => [...new Set([...all, ...ecmwfEnsIds])]);
+  };
   async function load(id: string, enable = false) {
     if (busy.includes(id)) return;
     setBusy((b) => [...b, id]);
@@ -733,8 +746,8 @@ function ModelPanel(p: any) {
     }
   }
   useEffect(() => {
-    load("ifs");
-    load("aifs");
+    load("ifs", true);
+    load("aifs", true);
     load("gfs");
     load("ecmwf");
     const initial = setTimeout(
@@ -754,6 +767,22 @@ function ModelPanel(p: any) {
   }, []);
   return (
     <>
+      <section className="ecmwf-ensemble" aria-label="ECMWF 系集預測">
+        <div className="ecmwf-ensemble-heading">
+          <div>
+            <b>ECMWF 系集預測</b>
+            <small>IFS 動力系集＋AIFS 人工智慧系集</small>
+          </div>
+          <button type="button" onClick={toggleEcmwfEns}>
+            {ecmwfEnsIds.every((id) => p.selected.includes(id)) ? "全部隱藏" : "全部顯示"}
+          </button>
+        </div>
+        <div className="ecmwf-ensemble-status">
+          {ecmwfEnsReady === 2
+            ? "兩套系集資料已載入；點選路徑上的預報點可查看時間、位置、風速、氣壓與風圈。"
+            : `正在取得 ECMWF 系集資料（${ecmwfEnsReady}/2 已載入）…`}
+        </div>
+      </section>
       {configs.map((c) => {
         const m = p.models.find((m: any) => m.id === c.id);
         return (

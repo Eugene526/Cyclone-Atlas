@@ -24,7 +24,9 @@ export async function GET(req: Request) {
       const d = new Date(now.getTime() - i * 6 * 3600000),
         date = d.toISOString().slice(0, 10).replaceAll("-", ""),
         hh = String(d.getUTCHours()).padStart(2, "0"),
-        lead = id === "ifs" && (hh === "06" || hh === "18") ? 144 : 360;
+        // IFS ENS tropical-cyclone trajectories run to +240 h at 00/12Z
+        // and +144 h at 06/18Z. AIFS ENS runs to +360 h at every cycle.
+        lead = id === "ifs" && (hh === "06" || hh === "18") ? 144 : id === "ifs" ? 240 : 360;
       const url = `https://storage.googleapis.com/ecmwf-open-data/${date}/${hh}z/${config.folder}/0p25/enfo/${date}${hh}0000-${lead}h-enfo-tf.bufr`;
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(18000) });
@@ -56,6 +58,7 @@ export async function GET(req: Request) {
       tracks,
       stormCount: new Set(tracks.map((t: any) => t.storm)).size,
       memberCount: new Set(tracks.map((t: any) => t.member)).size,
+      trackCount: tracks.length,
       scope: "Western North Pacific",
       decoder: "ECMWF BUFR4 316082 (ecCodes parity tested)",
     };
