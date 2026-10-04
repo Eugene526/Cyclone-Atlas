@@ -1,4 +1,5 @@
 "use client";
+import {acceptThermal} from "@/lib/probe-state.mjs";
 import { useState, useEffect, useRef } from "react";
 import {
   Satellite,
@@ -33,6 +34,7 @@ const regions = [
   { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
 export default function Observatory() {
+  const [thermal,setThermal]=useState<any>(null);
   const [pointInfo, setPointInfo] = useState<any>(null);
   const [frameReady, setFrameReady] = useState(false),
     [rangeEnd, setRangeEnd] = useState(""),
@@ -69,6 +71,7 @@ export default function Observatory() {
   const withinSatellite = Math.cos(center[1] * Math.PI / 180) * Math.cos((center[0] - 140.7) * Math.PI / 180) > 6378137 / 42164160;
   const night = time ? isNight(time, center[0], center[1]) : false,
     effective = mode === "auto" ? (night ? "bw" : "rgb") : mode;
+  useEffect(()=>setThermal(null),[time,mode]);
   async function refresh() {
     try {
       const r = await fetch("/api/satellite");
@@ -249,6 +252,7 @@ export default function Observatory() {
           wind={wind}
           forecast={forecast}
           models={displayedModels}
+          onThermal={d=>setThermal((previous:any)=>acceptThermal(previous,d))}
           onPoint={setPointInfo}
           onLoaded={() => setFrameReady(true)}
           onLoading={() => setFrameReady(false)}
@@ -574,6 +578,7 @@ export default function Observatory() {
             </a>
           </aside>
         )}
+        {thermal&&<article className="cloud-temperature-popup" style={{left:Math.max(8,Math.min(thermal.popupPosition.width-232,thermal.popupPosition.x+12)),top:Math.max(8,Math.min(thermal.popupPosition.height-190,thermal.popupPosition.y-60))}} aria-label="雲頂亮溫資訊"><button className="icon-button close" aria-label="關閉雲頂溫度" onClick={()=>setThermal(null)}><X size={16}/></button><small>OTT · 紅外線亮溫估計</small><strong>{thermal.loading?'讀取中…':thermal.error?'資料未取得':thermal.temperature.toFixed(1)+' °C'}</strong><p>{thermal.lat.toFixed(2)}° · {thermal.lon.toFixed(2)}°</p><p>{new Date(thermal.time).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})} · UTC+8</p><footer>{thermal.error||'依影像編碼估計，非原始定標值；有雲時近似雲頂溫度，晴空可能為地表亮溫。'}</footer></article>}
         {pointInfo && (
           <PointDetails data={pointInfo} onClose={() => setPointInfo(null)} />
         )}
