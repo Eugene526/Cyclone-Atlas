@@ -115,6 +115,13 @@ export default function WeatherMap(p: {
         { hitTolerance: 8 },
       );
       if (!chosen) return;
+      const size = m.getSize() || [0, 0];
+      const popupPosition = {
+        x: e.pixel[0],
+        y: e.pixel[1],
+        width: size[0],
+        height: size[1],
+      };
       if (chosen.track) {
         selectedTrack.current = chosen;
         const track = chosen.track;
@@ -156,11 +163,11 @@ export default function WeatherMap(p: {
           );
           selection.current!.addFeature(f);
         }
-        cb.current.onPoint({ ...chosen, point: chosen.point || closest });
+        cb.current.onPoint({ ...chosen, point: chosen.point || closest, popupPosition });
       } else {
         selection.current!.clear();
         selectedTrack.current = null;
-        cb.current.onPoint(chosen);
+        cb.current.onPoint({ ...chosen, popupPosition });
       }
     });
     m.on("pointermove", (e) => {

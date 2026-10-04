@@ -1008,7 +1008,7 @@ input[type="range"] {
 }
 .point-popup {
   position: absolute;
-  left: calc(50% - 175px);
+  right: 320px;
   bottom: 164px;
   width: 350px;
   max-height: 60%;
@@ -1019,6 +1019,11 @@ input[type="range"] {
   border-radius: 12px;
   box-shadow: 0 16px 60px #0009;
   padding: 21px;
+}
+.point-popup-anchored {
+  right: auto;
+  bottom: auto;
+  z-index: 8;
 }
 .point-popup h3 {
   font-size: 18px;
@@ -1102,14 +1107,45 @@ input[type="range"] {
 }
 @media (max-width: 720px) {
   .point-popup {
-    left: 10px;
     right: 10px;
-    bottom: 160px;
-    width: auto;
-    max-height: 55%;
+    bottom: 94px;
+    width: min(300px, calc(100vw - 20px));
+    max-height: 38%;
+    padding: 12px;
+    border-radius: 9px;
   }
-  .point-stats b {
-    font-size: 20px;
+  .point-popup-anchored {
+    right: auto;
+    bottom: auto;
+  }
+  .point-popup-mobile h3 {
+    font-size: 14px;
+    margin: 6px 28px 4px 0;
+  }
+  .point-popup-mobile .point-time,
+  .point-popup-mobile dl,
+  .point-popup-mobile .source-note,
+  .point-popup-mobile .muted {
+    font-size: 9px;
+  }
+  .point-popup-mobile .point-stats {
+    gap: 7px;
+    padding: 8px 0;
+    margin: 8px 0;
+  }
+  .point-popup-mobile .point-stats b {
+    font-size: 17px;
+    margin-top: 4px;
+  }
+  .point-popup-mobile .point-stats small {
+    font-size: 9px;
+  }
+  .point-popup-mobile h4 {
+    margin: 8px 0 5px;
+  }
+  .point-popup-mobile .close {
+    top: 7px;
+    right: 7px;
   }
 }
 
