@@ -22,6 +22,7 @@ import { Point, LineString, Polygon } from "ol/geom";
 import { circular } from "ol/geom/Polygon";
 import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
+import { globalImagery } from "@/lib/global-imagery";
 import { imagery } from "@/lib/imagery";
 import { unwrapTrack } from "@/lib/track-geometry.mjs";
 import { unByKey } from "ol/Observable";
@@ -41,6 +42,7 @@ export type MapAPI = {
 };
 export default function WeatherMap(p: {
   time: string;
+  global: boolean;
   mode: string;
   opacity: number;
   storms: any[];
@@ -78,6 +80,7 @@ export default function WeatherMap(p: {
     selection.current = new VectorSource();
     const m = new Map({
       target: el.current!,
+      maxTilesLoading: 6,
       layers: [
         new VectorLayer({
           source: new VectorSource({
@@ -261,7 +264,7 @@ export default function WeatherMap(p: {
     const m = map.current;
     let active = true,
       failed = 0;
-    const source = imagery(p.time, p.mode, p.playing),
+    const source = p.global ? globalImagery(p.time, p.mode) : imagery(p.time, p.mode, p.playing),
       old = sat.current;
     cb.current.onLoading();
     cb.current.onStatus(
@@ -271,7 +274,7 @@ export default function WeatherMap(p: {
     sat.current = layer;
     m.getLayers().insertAt(1, layer);
     let preview: TileLayer<XYZ> | null = null;
-    if (!old && !p.playing) {
+    if (!old && !p.playing && !p.global) {
       preview = new TileLayer({
         source: imagery(p.time, p.mode, false, true),
         opacity: p.opacity,
@@ -310,7 +313,7 @@ export default function WeatherMap(p: {
       if (old) m.removeLayer(old);
       if (preview) m.removeLayer(preview);
     };
-  }, [p.time, p.mode, p.playing]);
+  }, [p.time, p.mode, p.playing, p.global]);
   useEffect(() => {
     if (!map.current || !p.playing) return;
     const m = map.current,
@@ -320,7 +323,7 @@ export default function WeatherMap(p: {
     let cancelled = false;
     let keys: any[] = [];
     for (const t of p.nextTimes.slice(0, 3)) {
-      const src = imagery(t, p.mode, true),
+      const src = p.global ? globalImagery(t, p.mode) : imagery(t, p.mode, true),
         grid = src.getTileGridForProjection(projection),
         z = grid.getZForResolution(resolution),
         range = grid.getTileRangeForExtentAndZ(extent, z);
@@ -336,7 +339,7 @@ export default function WeatherMap(p: {
       cancelled = true;
       keys.forEach(unByKey);
     };
-  }, [p.nextTimes.join(","), p.mode, p.playing]);
+  }, [p.nextTimes.join(","), p.mode, p.playing, p.global]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
   useEffect(() => {
     const s = vectors.current;
