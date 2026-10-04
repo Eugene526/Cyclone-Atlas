@@ -66,3 +66,9 @@ node tests/data-check.mjs /path/to/ecmwf-tf.bufr
 - 官方颱風卡可直接開啟日本氣象廳詳細資料；官方資料與模式預測分別標示。
 - 顯著標示衛星觀測年月日時間 UTC+8；側欄收起仍持續更新模式。
 - OTT 靜態縮放最高使用來源 10d B13（全圓盤 5500px），不是人工超解析度。
+
+
+### 確定性模式與路徑選取
+- 新增 NOAA GFS 確定性熱帶氣旋追蹤路徑，讀取 NCEP `ens_tracker/prod/gfs.../tctrack/avnop...` ATCF 輸出；網頁標示 GFS，不改動源資料中的 AVNO 代碼。
+- 新增 ECMWF IFS HRES 確定性颱風路徑資料選項，依官方 Open Data BUFR trajectory 命名規格查詢；該次未提供時會顯示資料未取得，絕不以系集路徑冒充 HRES。
+- 關閉一個模式會同時移除其突出選取路徑、沿線預報點與資訊卡；點選另一個風暴標記也會清除舊選取。系集線條已恢復原本較鮮明的顏色與線寬。

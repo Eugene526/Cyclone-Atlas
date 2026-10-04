@@ -179,7 +179,7 @@ export default function Observatory() {
           storms={storms}
           wind={wind}
           forecast={forecast}
-          models={models.filter((m) => selected.includes(m.id)).map(m => ({...m, color: ({ifs: "#91adb5", aifs: "#a59bb7", gefs: "#b9ad91", aigefs: "#b49ba9", cmce: "#94b29f", fens: "#9ba9bc", wnv3: "#b99ca5", google: "#95a9bf", fnv3: "#bbaa97"} as Record<string,string>)[m.id]}))}
+          models={models.filter((m) => selected.includes(m.id)).map(m => ({...m, color: ({ifs: "#61d8ee", aifs: "#ba9dff", gefs: "#f3c775", aigefs: "#e790bd", cmce: "#7bde9a", fens: "#9db1ec", wnv3: "#ff91ab", google: "#8aafff", fnv3: "#ffbe88", gfs: "#40d8ff", ecmwf: "#ffad42"} as Record<string,string>)[m.id]}))}
           onPoint={setPointInfo}
           onLoaded={() => setFrameReady(true)}
           onLoading={() => setFrameReady(false)}
@@ -477,7 +477,7 @@ export default function Observatory() {
                 setStatus={setModelStatus}
               />
               <p className="source-note">
-                淡色細線各代表一個系集成員；點選後突出該路徑與預報點。不同模式起報時間可能不同。
+                系集模式以彩色線呈現成員路徑；GFS 與 ECMWF IFS HRES 顯示確定性路徑。點選路徑可看預報點。不同模式起報時間可能不同。
               </p>
             </section>
             <a
@@ -687,6 +687,8 @@ function ModelPanel(p: any) {
   const [busy, setBusy] = useState<string[]>([]),
     [errors, setErrors] = useState<Record<string, string>>({});
   const configs = [
+    { id: "gfs", label: "GFS", color: "#40d8ff" },
+    { id: "ecmwf", label: "ECMWF IFS HRES", color: "#ffad42" },
     { id: "ifs", label: "IFS ENS", color: "#91adb5" },
     { id: "aifs", label: "AIFS ENS", color: "#a59bb7" },
     { id: "gefs", label: "GEFS", color: "#b9ad91" },
@@ -706,6 +708,8 @@ function ModelPanel(p: any) {
           "/api/" +
             (["ifs", "aifs"].includes(id)
               ? "models"
+              : ["gfs", "ecmwf"].includes(id)
+                ? "deterministic"
               : ["wnv3", "google", "fnv3"].includes(id)
                 ? "google"
                 : "noaa") +
@@ -731,10 +735,12 @@ function ModelPanel(p: any) {
   useEffect(() => {
     load("ifs");
     load("aifs");
+    load("gfs");
+    load("ecmwf");
     const initial = setTimeout(
       () =>
         configs
-          .filter((c) => !["ifs", "aifs"].includes(c.id))
+          .filter((c) => !["ifs", "aifs", "gfs", "ecmwf"].includes(c.id))
           .forEach((c) => load(c.id)),
       5000,
     );
@@ -757,8 +763,10 @@ function ModelPanel(p: any) {
                 <i className="model-dot" style={{ background: c.color }} />
                 <b>{c.label}</b>
                 <small>
-                  {["ifs", "aifs"].includes(c.id)
+                  {["ifs", "aifs", "ecmwf"].includes(c.id)
                     ? "ECMWF"
+                    : c.id === "gfs"
+                      ? "NOAA"
                     : c.id === "cmce"
                       ? "ECCC"
                       : ["wnv3", "google", "fnv3"].includes(c.id)

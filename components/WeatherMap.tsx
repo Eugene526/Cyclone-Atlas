@@ -61,6 +61,7 @@ export default function WeatherMap(p: {
     sat = useRef<any>(null),
     vectors = useRef<VectorSource | null>(null),
     selection = useRef<VectorSource | null>(null),
+    selectedTrack = useRef<any>(null),
     cb = useRef(p);
   cb.current = p;
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function WeatherMap(p: {
       );
       if (!chosen) return;
       if (chosen.track) {
+        selectedTrack.current = chosen;
         const track = chosen.track;
         const closest = track.points.reduce((a: any, b: any) => {
           const dist = (p: any) => {
@@ -157,7 +159,11 @@ export default function WeatherMap(p: {
           selection.current!.addFeature(f);
         }
         cb.current.onPoint({ ...chosen, point: chosen.point || closest });
-      } else cb.current.onPoint(chosen);
+      } else {
+        selection.current!.clear();
+        selectedTrack.current = null;
+        cb.current.onPoint(chosen);
+      }
     });
     m.on("pointermove", (e) => {
       m.getTargetElement().style.cursor = m.hasFeatureAtPixel(e.pixel, {
@@ -485,8 +491,8 @@ export default function WeatherMap(p: {
             new LineString(
               unwrapTrack(track.points).map((v: number[]) => fromLonLat(v)),
             ),
-            (model.color || "#8faeb8") + "38",
-            0.8,
+            (model.color || "#65dce8") + "88",
+            1.2,
           );
           line.set("info", {
             kind: "model",
@@ -495,11 +501,20 @@ export default function WeatherMap(p: {
             run: model.run,
             source: model.source,
             color: model.color,
+            modelId: model.id,
             track,
           });
         }
       }
   }, [p.storms, p.wind, p.forecast, p.models]);
+  useEffect(() => {
+    const selected = selectedTrack.current;
+    if (selected?.modelId && !p.models.some((model) => model.id === selected.modelId)) {
+      selection.current?.clear();
+      selectedTrack.current = null;
+      cb.current.onPoint(null);
+    }
+  }, [p.models]);
   return (
     <div
       ref={el}
