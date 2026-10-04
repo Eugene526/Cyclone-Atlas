@@ -1,6 +1,6 @@
 import {getRawFrame,putRawFrame} from './raw-frame-cache';
 import {fetchJson,readJsonResponse} from './http-json.mjs';
-import RawWorker from '../components/icon.worker?worker';
+import { iconWorker as RawWorker } from './portable-workers';
 import {formatRun,runDate} from './gfs-raw.mjs';
 const latest=new Map<string,any>();
 export async function loadICON(date:string,hour:number,level:string,signal:AbortSignal){

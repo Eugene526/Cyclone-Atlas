@@ -1,5 +1,5 @@
 import {getRawFrame,putRawFrame} from './raw-frame-cache';
-import GFSWorker from '../components/gfs.worker?worker';
+import { gfsWorker as GFSWorker } from './portable-workers';
 import {forecastStep,runDate,formatRun} from './gfs-raw.mjs';
 import {fetchJson,readJsonResponse} from './http-json.mjs';
 let latest:{run:string,until:number}|null=null;
