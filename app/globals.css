@@ -558,6 +558,80 @@ input[type="range"] {
   font-size: 9px;
   color: #668595;
 }
+.mobile-time-toggle {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #ffffff20;
+  border-radius: 5px;
+  padding: 5px 7px;
+  background: #152432;
+  color: #a9c4ce;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.mobile-time-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #ffffff24;
+  border-radius: 10px;
+  background: #101b28f5;
+  box-shadow: 0 12px 35px #0008;
+  color: #c6d7df;
+}
+.mobile-time-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  font-size: 11px;
+}
+.mobile-time-panel-heading button {
+  padding: 4px 8px;
+  border: 1px solid #ffffff20;
+  border-radius: 5px;
+  background: #172734;
+  color: #a9c4ce;
+  font-size: 10px;
+}
+.mobile-time-date,
+.mobile-time-fields label {
+  display: grid;
+  gap: 5px;
+  color: #8ea8b7;
+  font-size: 9px;
+}
+.mobile-time-date input,
+.mobile-time-fields select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 7px 8px;
+  border: 1px solid #ffffff18;
+  border-radius: 6px;
+  background: #172734;
+  color: #d0e0e7;
+  font-size: 11px;
+}
+.mobile-time-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 9px;
+}
+.mobile-time-panel > p {
+  margin: 8px 0 0;
+  color: #718d9e;
+  font-size: 9px;
+  line-height: 1.45;
+}
 .timeline-options {
   display: flex;
   gap: 12px;
@@ -861,6 +935,9 @@ input[type="range"] {
   }
   .time-title span {
     display: none;
+  }
+  .mobile-time-toggle {
+    display: inline-flex;
   }
   .timeline-options {
     gap: 2px;

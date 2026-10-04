@@ -38,6 +38,8 @@ export default function Observatory() {
     [rangeEnd, setRangeEnd] = useState(""),
     [latest, setLatest] = useState(""),
     [time, setTime] = useState(""),
+    [animationStart, setAnimationStart] = useState(""),
+    [mobileTimeOpen, setMobileTimeOpen] = useState(false),
     [live, setLive] = useState(true),
     [mode, setMode] = useState<Mode>("auto"),
     [opacity, setOpacity] = useState(0.94),
@@ -76,6 +78,7 @@ export default function Observatory() {
       if (liveRef.current) {
         setTime(d.time);
         setRangeEnd(d.time);
+        setAnimationStart("");
       }
     } catch (e) {
       setStatus("衛星資料源暫時未回應");
@@ -112,24 +115,48 @@ export default function Observatory() {
         const next = new Date(old).getTime() + step * 60000;
         return new Date(
           next > new Date(rangeEnd).getTime()
-            ? new Date(rangeEnd).getTime() - hours * 3600000
+            ? animationStart
+              ? new Date(animationStart).getTime()
+              : new Date(rangeEnd).getTime() - hours * 3600000
             : next,
         ).toISOString();
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [play, rangeEnd, hours, step, frameReady, time]);
+  }, [play, rangeEnd, hours, step, frameReady, time, animationStart]);
+  function chooseDateTime(value: string) {
+    if (!value) return;
+    const picked = new Date(value + "+08:00");
+    picked.setUTCMinutes(Math.floor(picked.getUTCMinutes() / 10) * 10, 0, 0);
+    const pickedTime = picked.getTime();
+    const latestTime = latest ? new Date(latest).getTime() : pickedTime;
+    if (pickedTime > latestTime) {
+      setStatus("所選時間晚於最新衛星影像，請選擇較早的時刻");
+      return;
+    }
+    const start = picked.toISOString();
+    setLive(false);
+    setPlay(false);
+    setTime(start);
+    setAnimationStart(start);
+    setRangeEnd(new Date(Math.min(pickedTime + hours * 3600000, latestTime)).toISOString());
+  }
+  function changeHours(nextHours: number) {
+    setHours(nextHours);
+    if (animationStart) {
+      const start = new Date(animationStart).getTime();
+      const latestTime = latest ? new Date(latest).getTime() : start + nextHours * 3600000;
+      setRangeEnd(new Date(Math.min(start + nextHours * 3600000, latestTime)).toISOString());
+    }
+  }
   function jump(minutes: number) {
     setLive(false);
     setPlay(false);
-    setTime(
-      new Date(
-        Math.min(
-          new Date(latest).getTime(),
-          new Date(time).getTime() + minutes * 60000,
-        ),
-      ).toISOString(),
-    );
+    const nextTime = new Date(
+      Math.min(new Date(latest).getTime(), new Date(time).getTime() + minutes * 60000),
+    ).toISOString();
+    setTime(nextTime);
+    setAnimationStart(nextTime);
   }
   const age = latest
     ? Math.floor((Date.now() - new Date(latest).getTime()) / 60000)
@@ -555,25 +582,35 @@ export default function Observatory() {
               <Clock3 size={16} />
               <b>{time ? tw(time) : "-- / --  --:--"}</b>
               <span>UTC+8</span>
+              <button
+                type="button"
+                className="mobile-time-toggle"
+                aria-expanded={mobileTimeOpen}
+                onClick={() => setMobileTimeOpen((open) => !open)}
+              >
+                <Clock3 size={13} /> 時間設定
+              </button>
             </div>
             <div className="timeline-options">
               <select
                 aria-label="動畫時間範圍"
                 value={hours}
-                onChange={(e) => setHours(+e.target.value)}
+                onChange={(e) => changeHours(+e.target.value)}
               >
-                <option value={1}>往前 1 小時</option>
-                <option value={3}>往前 3 小時</option>
-                <option value={6}>往前 6 小時</option>
-                <option value={12}>往前 12 小時</option>
+                <option value={1}>時間窗 1 小時</option>
+                <option value={3}>時間窗 3 小時</option>
+                <option value={6}>時間窗 6 小時</option>
+                <option value={12}>時間窗 12 小時</option>
               </select>
               <button
-                className={"latest-button " + (live ? "on" : "")}
+              className={"latest-button " + (live ? "on" : "")}
                 onClick={() => {
                   setLive(true);
                   setPlay(false);
+                  setMobileTimeOpen(false);
                   setTime(latest);
                   setRangeEnd(latest);
+                  setAnimationStart("");
                   refresh();
                 }}
               >
@@ -586,10 +623,11 @@ export default function Observatory() {
             <button
               className="play-button"
               title={play ? "暫停動畫" : "播放動畫"}
-              disabled={!time}
+              disabled={!time || (!!animationStart && new Date(rangeEnd).getTime() <= new Date(animationStart).getTime())}
               onClick={() => {
                 setLive(false);
                 setPlay(!play);
+                setMobileTimeOpen(false);
               }}
             >
               {play ? <Pause size={18} /> : <Play size={18} />}
@@ -612,9 +650,11 @@ export default function Observatory() {
               step={600000}
               value={time ? new Date(time).getTime() : 0}
               onChange={(e) => {
+                const selectedTime = new Date(+e.target.value).toISOString();
                 setLive(false);
                 setPlay(false);
-                setTime(new Date(+e.target.value).toISOString());
+                setTime(selectedTime);
+                setAnimationStart(selectedTime);
               }}
             />
             <button
@@ -630,6 +670,7 @@ export default function Observatory() {
               aria-label="指定衛星日期時間（臺灣）"
               type="datetime-local"
               step="600"
+              max={latest ? new Date(new Date(latest).getTime() + 8 * 3600000).toISOString().slice(0, 16) : undefined}
               value={
                 time
                   ? new Date(new Date(time).getTime() + 8 * 3600000)
@@ -637,20 +678,7 @@ export default function Observatory() {
                       .slice(0, 16)
                   : ""
               }
-              onChange={(e) => {
-                if (e.target.value) {
-                  setLive(false);
-                  setPlay(false);
-                  const picked = new Date(e.target.value + "+08:00");
-                  picked.setUTCMinutes(
-                    Math.floor(picked.getUTCMinutes() / 10) * 10,
-                    0,
-                    0,
-                  );
-                  setTime(picked.toISOString());
-                  setRangeEnd(picked.toISOString());
-                }
-              }}
+              onChange={(e) => chooseDateTime(e.target.value)}
             />
           </div>
           <div className="timeline-bottom">
@@ -673,9 +701,49 @@ export default function Observatory() {
               </select>
             </label>
           </div>
+        {mobileTimeOpen && (
+          <section className="mobile-time-panel" aria-label="手機時間與動畫設定">
+            <div className="mobile-time-panel-heading">
+              <b>衛星時間與動畫</b>
+              <button type="button" onClick={() => setMobileTimeOpen(false)}>完成</button>
+            </div>
+            <label className="mobile-time-date">
+              <span>顯示時間／動畫起始點（臺灣時間）</span>
+              <input
+                aria-label="手機自訂衛星日期時間（臺灣）"
+                type="datetime-local"
+                step="600"
+                max={latest ? new Date(new Date(latest).getTime() + 8 * 3600000).toISOString().slice(0, 16) : undefined}
+                value={time ? new Date(new Date(time).getTime() + 8 * 3600000).toISOString().slice(0, 16) : ""}
+                onChange={(e) => chooseDateTime(e.target.value)}
+              />
+            </label>
+            <div className="mobile-time-fields">
+              <label>
+                <span>動畫長度</span>
+                <select aria-label="手機動畫長度" value={hours} onChange={(e) => changeHours(+e.target.value)}>
+                  <option value={1}>1 小時</option>
+                  <option value={3}>3 小時</option>
+                  <option value={6}>6 小時</option>
+                  <option value={12}>12 小時</option>
+                </select>
+              </label>
+              <label>
+                <span>播放間隔</span>
+                <select aria-label="手機動畫播放間隔" value={step} onChange={(e) => setStep(+e.target.value)}>
+                  <option value={10}>每 10 分</option>
+                  <option value={20}>每 20 分</option>
+                  <option value={30}>每 30 分</option>
+                  <option value={60}>每 60 分</option>
+                </select>
+              </label>
+            </div>
+            <p>{animationStart && rangeEnd && new Date(rangeEnd).getTime() <= new Date(animationStart).getTime() ? "目前已選最新可用影格，尚無後續影格可播放；請選擇較早時間。" : "拖曳下方時間軸可選影格；自訂時間後按播放，動畫從該時刻開始。"}</p>
+          </section>
+        )}
         </div>
-      </div>
-      {info && (
+        </div>
+        {info && (
         <div className="modal-scrim" onClick={() => setInfo(false)}>
           <article className="info-modal" onClick={(e) => e.stopPropagation()}>
             <button
