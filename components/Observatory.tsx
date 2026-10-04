@@ -198,10 +198,10 @@ export default function Observatory() {
   return (
     <main className="observatory">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="颱風觀測室首頁">
+        <a className="brand" href="/" aria-label="颱風觀測站首頁">
           <span className="brand-mark">◉</span>
           <span>
-            颱風觀測室<small>CYCLONE ATLAS</small>
+            颱風觀測站<small>CYCLONE ATLAS</small>
           </span>
         </a>
         <nav className="header-switcher" aria-label="觀測頁面">
