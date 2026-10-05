@@ -5,3 +5,5 @@ export const raw_gribWorker = class { constructor() { return new Worker(new URL(
 export const iconWorker = class { constructor() { return new Worker(new URL('../components/icon.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
 export const jmaWorker = class { constructor() { return new Worker(new URL('../components/jma.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
 export const gepsWorker = class { constructor() { return new Worker(new URL('../components/geps.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
+
+export const weatherWorker = class { constructor() { return new Worker(new URL('../components/weather.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
