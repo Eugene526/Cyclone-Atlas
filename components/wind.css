@@ -32,3 +32,6 @@
 /* Point details must size to their content, not stretch between top and bottom insets. */
 .wind-point{height:fit-content;min-height:0;max-height:calc(100dvh - 160px);overflow:auto}
 @media(min-width:721px){.wind-workspace .wind-point{bottom:auto!important}}
+.wind-modal{position:fixed;inset:0;margin:auto;max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+@media(max-width:720px){.wind-settings select,.wind-time input[type=date],.wind-time input[type=datetime-local]{font-size:16px}.wind-settings-body{max-height:48dvh;overflow:auto;overscroll-behavior:contain}.wind-modal{width:calc(100vw - 24px)}}
+@media(max-height:500px){.wind-explorer{min-height:0}.wind-settings-body{max-height:45dvh;overflow:auto}.wind-time{max-height:40dvh;overflow:auto}}
