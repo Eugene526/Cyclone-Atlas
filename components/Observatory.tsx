@@ -34,6 +34,7 @@ const regions = [
   { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
 export default function Observatory() {
+  const [radars,setRadars]=useState<string[]>([]),[radarReady,setRadarReady]=useState(true),[radarStatus,setRadarStatus]=useState("");
   const [thermal,setThermal]=useState<any>(null);
   const [pointInfo, setPointInfo] = useState<any>(null);
   const [frameReady, setFrameReady] = useState(false),
@@ -111,7 +112,7 @@ export default function Observatory() {
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (!play || !rangeEnd || !frameReady) return;
+    if (!play || !rangeEnd || !frameReady || !radarReady) return;
     const t = setTimeout(() => {
       setFrameReady(false);
       setTime((old) => {
@@ -126,7 +127,7 @@ export default function Observatory() {
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [play, rangeEnd, hours, step, frameReady, time, animationStart]);
+  }, [play, rangeEnd, hours, step, frameReady, radarReady, time, animationStart]);
   function chooseDateTime(value: string) {
     if (!value) return;
     const picked = new Date(value + "+08:00");
@@ -228,6 +229,7 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
+          radars={radars} onRadarReady={setRadarReady} onRadarStatus={setRadarStatus}
           time={time}
           mode={effective}
           playing={play}
@@ -385,6 +387,7 @@ export default function Observatory() {
               </button>
               <span className="tiny-pill">即時來源</span>
             </div>
+            <section><div className="section-label"><span>雷達觀測疊圖</span></div>{[['jma','日本全境・降水強度'],['cwa','臺灣・原始雷達回波']].map(([id,label])=><label key={id} style={{display:'flex',gap:10,margin:'12px 0'}}><input type="checkbox" checked={radars.includes(id)} onChange={e=>setRadars(old=>e.target.checked?[...old,id]:old.filter(r=>r!==id))}/>{label}</label>)}<p style={{fontSize:11,lineHeight:1.6,overflowWrap:'anywhere'}}>{radarStatus}</p><details style={{fontSize:11,lineHeight:1.6}}><summary>來源、色階與回放範圍</summary><p>雷達跟隨衛星時間，顯示該時刻以前最近的觀測（最多差 10 分鐘）。日本：mm/h，約 3 小時回放。臺灣：dBZ，約 10 天回放，低於 0 不著色。放大顯示原生解析度；缺測不代表無降雨。</p><p>臺灣 dBZ：0／10／20／30／40／50／60／70</p><div style={{height:6,background:"linear-gradient(to right,#6eb9ea,#2181db,#18c161,#eee332,#f28422,#ec2b27,#b522ca,#f8e6fa)"}}/><p>日本：陸地／沿岸 250m，遠海 1km。臺灣：0.0125° 原始格點。</p><a href="https://www.jma.go.jp/bosai/nowc/images/legend_jp_normal_hrpns.svg" target="_blank" rel="noreferrer">日本降水強度色階 ↗</a></details></section>
             <section>
               <div className="section-label">
                 01 <span>觀測範圍</span>

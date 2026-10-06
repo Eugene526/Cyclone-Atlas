@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Map from "ol/Map";
+import {useRadar} from "./useRadar";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -42,6 +43,9 @@ export type MapAPI = {
   export: () => void;
 };
 export default function WeatherMap(p: {
+  radars: string[];
+  onRadarReady:(ready:boolean)=>void;
+  onRadarStatus:(status:string)=>void;
   time: string;
   mode: string;
   opacity: number;
@@ -286,6 +290,7 @@ export default function WeatherMap(p: {
       map.current = null;
     };
   }, []);
+  useRadar(map,p);
   useEffect(() => {
     if (!map.current || !p.time) return;
     const m = map.current;
