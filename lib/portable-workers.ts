@@ -7,3 +7,5 @@ export const jmaWorker = class { constructor() { return new Worker(new URL('../c
 export const gepsWorker = class { constructor() { return new Worker(new URL('../components/geps.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
 
 export const weatherWorker = class { constructor() { return new Worker(new URL('../components/weather.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
+
+export const radarWorker = class { constructor() { return new Worker(new URL('../components/radar.worker.ts', import.meta.url), { type: 'module' }); } } as unknown as { new(): Worker };
