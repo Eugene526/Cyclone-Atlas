@@ -22,6 +22,7 @@ import {
   Wind,
   Focus,
 } from "lucide-react";
+import {radarLookahead} from "@/lib/radar-loading.mjs";
 import WeatherMap, { MapAPI } from "./WeatherMap";
 import { Mode, tw, isNight } from "@/lib/satellite";
 const regions = [
@@ -233,17 +234,7 @@ export default function Observatory() {
           time={time}
           mode={effective}
           playing={play}
-          nextTimes={
-            time
-              ? [1, 2, 3]
-                  .map((i) =>
-                    new Date(
-                      new Date(time).getTime() + step * 60000 * i,
-                    ).toISOString(),
-                  )
-                  .filter((t) => t <= rangeEnd)
-              : []
-          }
+          nextTimes={time && rangeEnd ? radarLookahead(time,rangeEnd,animationStart || new Date(Date.parse(rangeEnd)-hours*3600000).toISOString(),step) : []}
           opacity={opacity}
           storms={storms}
           wind={wind}

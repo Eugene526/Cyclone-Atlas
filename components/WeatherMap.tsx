@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import {useRadar} from "./useRadar";
+import {incomingLayerReady} from "@/lib/radar-loading.mjs";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -317,8 +318,9 @@ export default function WeatherMap(p: {
       failed++;
       if (active) cb.current.onStatus("部分圖磚缺漏，請更換時間或重試");
     });
-    const done = m.once("rendercomplete", () => {
-      if (!active) return;
+    const done = m.on("postrender", () => {
+      if (!active || !incomingLayerReady(layer.getRenderer())) return;
+      unByKey(done);
       if (old && cb.current.playing) {
         const start = performance.now(),
           fade = () => {

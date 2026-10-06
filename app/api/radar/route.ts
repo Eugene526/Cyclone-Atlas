@@ -1,8 +1,186 @@
-import {gzipSync} from 'node:zlib';
-import {parseCwaRadar,radarISO,radarStamp} from '@/lib/radar.mjs';
-export const runtime='nodejs';export const maxDuration=120;
-const cache=new Map<string,{until:number,value:any}>(),pending=new Map<string,Promise<any>>();
-async function cached(key:string,ttl:number,fn:()=>Promise<any>){const hit=cache.get(key);if(hit&&hit.until>Date.now())return hit.value;if(pending.has(key))return pending.get(key);const task=fn();pending.set(key,task);try{const value=await task;cache.set(key,{until:Date.now()+ttl,value});while(cache.size>12)cache.delete(cache.keys().next().value!);return value}finally{pending.delete(key)}}
-async function fetchSource(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(45000)});if(!r.ok)throw Error('雷達來源回覆 '+r.status);return r;}
-async function manifest(provider:string){return cached(provider+'-manifest',provider==='jma'?60000:180000,async()=>{if(provider==='jma'){const rows=await(await fetchSource('https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json')).json() as any[];return {provider,unit:'mm/h',maxNativeZoom:10,resolution:'陸地／沿岸 250m，遠海 1km',frames:rows.filter(r=>r.basetime===r.validtime&&r.elements.includes('hrpns')).map(r=>({time:new Date(radarISO(r.validtime)).toISOString(),base:r.basetime})).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))};}const key=process.env.CWA_API_KEY;if(!key)throw Error('臺灣雷達尚未配置伺服器授權碼');const j:any=await(await fetchSource('https://opendata.cwa.gov.tw/historyapi/v1/getMetadata/O-A0059-001?Authorization='+encodeURIComponent(key))).json();let rows=j.dataset?.resources?.resource?.data?.time;if(!Array.isArray(rows))throw Error('CWA 雷達歷史清單格式異常');return {provider,unit:'dBZ',resolution:'0.0125° 原始格點',frames:rows.map((r:any)=>({time:new Date(r.DateTime).toISOString()})).sort((a:any,b:any)=>Date.parse(a.time)-Date.parse(b.time))};});}
-export async function GET(req:Request){const q=new URL(req.url).searchParams,provider=q.get('provider');if(!['jma','cwa'].includes(provider||''))return Response.json({error:'無效雷達來源'},{status:400});try{const m=await manifest(provider!);if(!q.get('time'))return Response.json(m,{headers:{'Cache-Control':'public,max-age=60'}});const time=new Date(q.get('time')!).toISOString(),frame=m.frames.find((f:any)=>f.time===time);if(!frame)return Response.json({error:'此時間不在來源雷達保留清單內'},{status:404});if(provider==='jma'){const z=Number(q.get('z')),x=Number(q.get('x')),y=Number(q.get('y'));if(![z,x,y].every(Number.isInteger)||z<4||z>10||x<0||y<0||x>=2**z||y>=2**z)return Response.json({error:'無效圖磚座標'},{status:400});const url=`https://www.jma.go.jp/bosai/jmatile/data/nowc/${frame.base}/none/${radarStamp(time)}/surf/hrpns/${z}/${x}/${y}.png`,r=await fetch(url,{signal:AbortSignal.timeout(15000)});if(r.status===404)return new Response(null,{status:204,headers:{'Cache-Control':'public,max-age=3600','X-Radar-Empty':'sparse-tile'}});if(!r.ok||!r.headers.get('content-type')?.includes('image/png'))throw Error('日本雷達圖磚未就緒');return new Response(r.body,{headers:{'Content-Type':'image/png','Cache-Control':'public,max-age=86400'}})}const body=await cached('cwa-'+time,86400000,async()=>{const key=process.env.CWA_API_KEY!,local=new Date(Date.parse(time)+8*3600000).toISOString().slice(0,19).replace(/[-:T]/g,'/'),url='https://opendata.cwa.gov.tw/historyapi/v1/getData/O-A0059-001/'+local+'?Authorization='+encodeURIComponent(key),xml=await(await fetchSource(url)).text(),{meta,values}=parseCwaRadar(xml,time),head=new TextEncoder().encode(JSON.stringify(meta)),bytes=new Uint8Array(4+head.length+values.byteLength);new DataView(bytes.buffer).setUint32(0,head.length,true);bytes.set(head,4);bytes.set(new Uint8Array(values.buffer),4+head.length);return gzipSync(bytes)});return new Response(body,{headers:{'Content-Type':'application/octet-stream','Content-Encoding':'gzip','Cache-Control':'public,max-age=86400'}})}catch(e){return Response.json({error:e instanceof Error?e.message:'雷達資料未取得'},{status:502,headers:{'Cache-Control':'no-store'}})}}
+import { gzipSync } from "node:zlib";
+import { parseCwaRadar, radarISO, radarStamp } from "@/lib/radar.mjs";
+export const runtime = "nodejs";
+export const maxDuration = 120;
+const tileCache = new Map<string, { body: Uint8Array | null }>(),
+  tilePending = new Map<string, Promise<{ body: Uint8Array | null }>>();
+async function jmaTile(url: string) {
+  const hit = tileCache.get(url);
+  if (hit) {
+    tileCache.delete(url);
+    tileCache.set(url, hit);
+    return hit;
+  }
+  if (tilePending.has(url)) return tilePending.get(url)!;
+  const job = (async () => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (r.status === 404) return { body: null };
+    if (!r.ok || !r.headers.get("content-type")?.includes("image/png"))
+      throw Error("日本雷達圖磚未就緒");
+    return { body: new Uint8Array(await r.arrayBuffer()) };
+  })();
+  tilePending.set(url, job);
+  try {
+    const value = await job;
+    tileCache.set(url, value);
+    while (tileCache.size > 128)
+      tileCache.delete(tileCache.keys().next().value!);
+    return value;
+  } finally {
+    tilePending.delete(url);
+  }
+}
+const cache = new Map<string, { until: number; value: any }>(),
+  pending = new Map<string, Promise<any>>();
+async function cached(key: string, ttl: number, fn: () => Promise<any>) {
+  const hit = cache.get(key);
+  if (hit && hit.until > Date.now()) return hit.value;
+  if (pending.has(key)) return pending.get(key);
+  const task = fn();
+  pending.set(key, task);
+  try {
+    const value = await task;
+    cache.set(key, { until: Date.now() + ttl, value });
+    while (cache.size > 12) cache.delete(cache.keys().next().value!);
+    return value;
+  } finally {
+    pending.delete(key);
+  }
+}
+async function fetchSource(url: string) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(45000) });
+  if (!r.ok) throw Error("雷達來源回覆 " + r.status);
+  return r;
+}
+async function manifest(provider: string) {
+  return cached(
+    provider + "-manifest",
+    provider === "jma" ? 60000 : 180000,
+    async () => {
+      if (provider === "jma") {
+        const rows = (await (
+          await fetchSource(
+            "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json",
+          )
+        ).json()) as any[];
+        return {
+          provider,
+          unit: "mm/h",
+          maxNativeZoom: 10,
+          resolution: "陸地／沿岸 250m，遠海 1km",
+          frames: rows
+            .filter(
+              (r) => r.basetime === r.validtime && r.elements.includes("hrpns"),
+            )
+            .map((r) => ({
+              time: new Date(radarISO(r.validtime)).toISOString(),
+              base: r.basetime,
+            }))
+            .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)),
+        };
+      }
+      const key = process.env.CWA_API_KEY;
+      if (!key) throw Error("臺灣雷達尚未配置伺服器授權碼");
+      const j: any = await (
+        await fetchSource(
+          "https://opendata.cwa.gov.tw/historyapi/v1/getMetadata/O-A0059-001?Authorization=" +
+            encodeURIComponent(key),
+        )
+      ).json();
+      let rows = j.dataset?.resources?.resource?.data?.time;
+      if (!Array.isArray(rows)) throw Error("CWA 雷達歷史清單格式異常");
+      return {
+        provider,
+        unit: "dBZ",
+        resolution: "0.0125° 原始格點",
+        frames: rows
+          .map((r: any) => ({ time: new Date(r.DateTime).toISOString() }))
+          .sort((a: any, b: any) => Date.parse(a.time) - Date.parse(b.time)),
+      };
+    },
+  );
+}
+export async function GET(req: Request) {
+  const q = new URL(req.url).searchParams,
+    provider = q.get("provider");
+  if (!["jma", "cwa"].includes(provider || ""))
+    return Response.json({ error: "無效雷達來源" }, { status: 400 });
+  try {
+    const m = await manifest(provider!);
+    if (!q.get("time"))
+      return Response.json(m, {
+        headers: { "Cache-Control": "public,max-age=60,s-maxage=60" },
+      });
+    const time = new Date(q.get("time")!).toISOString(),
+      frame = m.frames.find((f: any) => f.time === time);
+    if (!frame)
+      return Response.json(
+        { error: "此時間不在來源雷達保留清單內" },
+        { status: 404 },
+      );
+    if (provider === "jma") {
+      const z = Number(q.get("z")),
+        x = Number(q.get("x")),
+        y = Number(q.get("y"));
+      if (
+        ![z, x, y].every(Number.isInteger) ||
+        ![4, 6, 8, 10].includes(z) ||
+        x < 0 ||
+        y < 0 ||
+        x >= 2 ** z ||
+        y >= 2 ** z
+      )
+        return Response.json({ error: "無效圖磚座標" }, { status: 400 });
+      const url = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${frame.base}/none/${radarStamp(time)}/surf/hrpns/${z}/${x}/${y}.png`;
+      const tile = await jmaTile(url);
+      if (!tile.body)
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Cache-Control": "public,max-age=3600,s-maxage=3600",
+            "X-Radar-Empty": "sparse-tile",
+          },
+        });
+      return new Response(new Uint8Array(tile.body), {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "public,max-age=86400,s-maxage=86400",
+          "Vercel-CDN-Cache-Control": "public,s-maxage=86400",
+        },
+      });
+    }
+    const body = await cached("cwa-" + time, 86400000, async () => {
+      const key = process.env.CWA_API_KEY!,
+        local = new Date(Date.parse(time) + 8 * 3600000)
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[-:T]/g, "/"),
+        url =
+          "https://opendata.cwa.gov.tw/historyapi/v1/getData/O-A0059-001/" +
+          local +
+          "?Authorization=" +
+          encodeURIComponent(key),
+        xml = await (await fetchSource(url)).text(),
+        { meta, values } = parseCwaRadar(xml, time),
+        head = new TextEncoder().encode(JSON.stringify(meta)),
+        bytes = new Uint8Array(4 + head.length + values.byteLength);
+      new DataView(bytes.buffer).setUint32(0, head.length, true);
+      bytes.set(head, 4);
+      bytes.set(new Uint8Array(values.buffer), 4 + head.length);
+      return gzipSync(bytes);
+    });
+    return new Response(body, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Encoding": "gzip",
+        "Cache-Control": "public,max-age=86400,s-maxage=86400",
+        "Vercel-CDN-Cache-Control": "public,s-maxage=86400",
+      },
+    });
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "雷達資料未取得" },
+      { status: 502, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+}
