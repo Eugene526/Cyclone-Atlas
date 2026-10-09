@@ -205,7 +205,7 @@ export default function Observatory() {
         </a>
         <nav className="header-switcher" aria-label="觀測頁面">
           <a className="selected" href="/" aria-current="page"><Satellite size={15}/>衛星</a>
-          <a href="/wind"><Wind size={16}/>風場</a><a href="/weather">天氣圖</a><a href="/radar">雷達</a>
+          <a href="/wind"><Wind size={16}/>風場</a><a href="/weather">天氣圖</a>
         </nav>
         <div className="header-actions">
           <span className={"live-tag " + (age > 60 ? "stale" : "")}>
