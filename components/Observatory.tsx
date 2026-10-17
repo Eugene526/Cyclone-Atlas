@@ -1,4 +1,8 @@
 "use client";
+import TyphoonWarning from "./TyphoonWarning";
+import CwaPointDetails from "./CwaPointDetails";
+import {useTyphoonWarnings} from "./useTyphoonWarnings";
+import "./typhoon-warning.css";
 import {acceptThermal} from "@/lib/probe-state.mjs";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -6,6 +10,7 @@ import {
   Layers,
   Play,
   Pause,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -35,6 +40,9 @@ const regions = [
   { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
 export default function Observatory() {
+  const {data:cwa,error:cwaError}=useTyphoonWarnings();
+  const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
+  function changeAgency(v:string){setAgency(v);setPointInfo(null)}
   const [radars,setRadars]=useState<string[]>([]),[radarReady,setRadarReady]=useState(true),[radarStatus,setRadarStatus]=useState("");
   const [thermal,setThermal]=useState<any>(null);
   const [pointInfo, setPointInfo] = useState<any>(null);
@@ -195,7 +203,7 @@ export default function Observatory() {
     ...models
       .filter((m) => selected.includes(m.id))
       .map((m) => ({ ...m, color: ({ ifs: "#61d8ee", aifs: "#ba9dff", gefs: "#f3c775", aigefs: "#e790bd", cmce: "#7bde9a", fens: "#9db1ec", wnv3: "#ff91ab", google: "#8aafff", fnv3: "#ffbe88", gfs: "#40d8ff", ecmwf: "#ffad42" } as Record<string, string>)[m.id] })),
-    ...(historyModel ? [historyModel] : []),
+    ...(agency==="jma"&&historyModel ? [historyModel] : []),
   ];
   return (
     <main className="observatory">
@@ -230,13 +238,14 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
+          cwa={cwa} agency={agency} cwaHistory={cwaHistory} warningLayers={warningLayers} cwaError={cwaError}
           radars={radars} onRadarReady={setRadarReady} onRadarStatus={setRadarStatus}
           time={time}
           mode={effective}
           playing={play}
           nextTimes={time && rangeEnd ? radarLookahead(time,rangeEnd,animationStart || new Date(Date.parse(rangeEnd)-hours*3600000).toISOString(),step) : []}
           opacity={opacity}
-          storms={storms}
+          storms={agency==="jma"?storms:[]}
           wind={wind}
           forecast={forecast}
           models={displayedModels}
@@ -249,6 +258,7 @@ export default function Observatory() {
           onStatus={setStatus}
           onReady={(a) => (api.current = a)}
         />
+        <TyphoonWarning data={cwa} error={cwaError} agency={agency} setAgency={changeAgency} layers={warningLayers} setLayers={setWarningLayers} onLocate={()=>api.current?.region([117,20,125,27])}/>
         <div className="map-top">
           <div className="eyebrow">
             <span /> EARTH OBSERVATION
@@ -378,8 +388,8 @@ export default function Observatory() {
               </button>
               <span className="tiny-pill">即時來源</span>
             </div>
-            <section><div className="section-label"><span>雷達觀測疊圖</span></div>{[['jma','日本全境・降水強度'],['cwa','臺灣・原始雷達回波']].map(([id,label])=><label key={id} style={{display:'flex',gap:10,margin:'12px 0'}}><input type="checkbox" checked={radars.includes(id)} onChange={e=>setRadars(old=>e.target.checked?[...old,id]:old.filter(r=>r!==id))}/>{label}</label>)}<p style={{fontSize:11,lineHeight:1.6,overflowWrap:'anywhere'}}>{radarStatus}</p><details style={{fontSize:11,lineHeight:1.6}}><summary>來源、色階與回放範圍</summary><p>雷達跟隨衛星時間，顯示該時刻以前最近的觀測（最多差 10 分鐘）。日本：mm/h，約 3 小時回放。臺灣：dBZ，約 10 天回放，低於 0 不著色。放大顯示原生解析度；缺測不代表無降雨。</p><p>臺灣 dBZ：0／10／20／30／40／50／60／70</p><div style={{height:6,background:"linear-gradient(to right,#6eb9ea,#2181db,#18c161,#eee332,#f28422,#ec2b27,#b522ca,#f8e6fa)"}}/><p>日本：陸地／沿岸 250m，遠海 1km。臺灣：0.0125° 原始格點。</p><a href="https://www.jma.go.jp/bosai/nowc/images/legend_jp_normal_hrpns.svg" target="_blank" rel="noreferrer">日本降水強度色階 ↗</a></details></section>
-            <section>
+            <section><details className="layer-card"><summary>雷達觀測疊圖<ChevronDown size={16}/></summary><div className="section-label"><span>雷達觀測疊圖</span></div>{[['jma','日本全境・降水強度'],['cwa','臺灣・原始雷達回波']].map(([id,label])=><label key={id} style={{display:'flex',gap:10,margin:'12px 0'}}><input type="checkbox" checked={radars.includes(id)} onChange={e=>setRadars(old=>e.target.checked?[...old,id]:old.filter(r=>r!==id))}/>{label}</label>)}<p style={{fontSize:11,lineHeight:1.6,overflowWrap:'anywhere'}}>{radarStatus}</p><details style={{fontSize:11,lineHeight:1.6}}><summary>來源、色階與回放範圍</summary><p>雷達跟隨衛星時間，顯示該時刻以前最近的觀測（最多差 10 分鐘）。日本：mm/h，約 3 小時回放。臺灣：dBZ，約 10 天回放，低於 0 不著色。放大顯示原生解析度；缺測不代表無降雨。</p><p>臺灣 dBZ：0／10／20／30／40／50／60／70</p><div style={{height:6,background:"linear-gradient(to right,#6eb9ea,#2181db,#18c161,#eee332,#f28422,#ec2b27,#b522ca,#f8e6fa)"}}/><p>日本：陸地／沿岸 250m，遠海 1km。臺灣：0.0125° 原始格點。</p><a href="https://www.jma.go.jp/bosai/nowc/images/legend_jp_normal_hrpns.svg" target="_blank" rel="noreferrer">日本降水強度色階 ↗</a></details></details></section>
+            <section><details className="layer-card"><summary>觀測範圍與透明度<ChevronDown size={16}/></summary>
               <div className="section-label">
                 01 <span>觀測範圍</span>
               </div>
@@ -455,12 +465,13 @@ export default function Observatory() {
                 value={opacity}
                 onChange={(e) => setOpacity(+e.target.value)}
               />
-            </section>
-            <section>
+            </details></section>
+            <section><details className="layer-card" open><summary>熱帶氣旋<ChevronDown size={16}/></summary>
               <div className="section-label">
                 02 <span>熱帶氣旋</span>
-                <span className="count">{storms.length}</span>
+                <span className="count">{agency==="cwa"?cwa?.storms?.length||0:storms.length}</span>
               </div>
+              {agency==="cwa" ? <>{cwa?.storms?.map((st:any)=><button className="storm-card" key={st.id} onClick={()=>{api.current?.region([st.current.lon-6,st.current.lat-4,st.current.lon+6,st.current.lat+4]);setPointInfo({kind:'cwa',name:st.name,point:st.current,issue:st.issue});if(window.innerWidth<=720)setPanel(false)}}><Wind size={20}/><div><strong>{st.name} {st.en}</strong><span>CWA 官方分析 · {tw(st.current.time)} UTC+8</span></div><Focus size={17}/></button>)}{!cwa?.storms?.length&&<p className="muted">{cwa?.trackStatus==='ready'?'目前沒有熱帶氣旋資料':'CWA 路徑資料尚未取得'}</p>}{cwa?.trackStatus==='stale'&&<p className="source-note">CWA 路徑資料已過期，請查看官方最新公告。</p>}</> : <>
               {storms.length ? (
                 storms.map((st) => {
                   const title = st.data?.[0],
@@ -498,10 +509,11 @@ export default function Observatory() {
                     : "正在取得官方資料…"}
                 </p>
               )}
+              </>}
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />
-                  烈風圈與暴風圈
+                  {agency==="cwa"?"七級／十級風圈（含預測）":"烈風圈與暴風圈"}
                 </span>
                 <input
                   type="checkbox"
@@ -512,7 +524,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot coral" />
-                  預報圓與暴風警戒域
+                  {agency==="cwa"?"預報路徑與70%機率圓":"預報圓與暴風警戒域"}
                 </span>
                 <input
                   type="checkbox"
@@ -521,12 +533,12 @@ export default function Observatory() {
                 />
               </label>
               <p className="source-note">
-                日本氣象廳 · {jmaStatus}
+                {agency==="cwa"?`中央氣象署 · ${cwa?.issuedAt?tw(cwa.issuedAt)+" UTC+8":"讀取中"}`:`日本氣象廳 · ${jmaStatus}`}
                 <br />
                 風圈為最新分析，不隨衛星歷史時間回溯。
               </p>
-            </section>
-            <section className="history-section">
+            </details></section>
+            {agency==="cwa"?<section><details className="layer-card"><summary>已走路徑<ChevronDown size={16}/></summary><label className="warning-toggle"><input type="checkbox" checked={cwaHistory} onChange={e=>setCwaHistory(e.target.checked)}/>CWA 目前颱風已走路徑</label></details></section>:<section className="history-section">
               <details>
                 <summary className="section-label">
                   03 <span>目前颱風已走路徑</span>
@@ -540,8 +552,8 @@ export default function Observatory() {
                 {historyModel && <p className="source-note">已顯示 {historyTitle} 的 {historyCoords.length} 個歷史位置，終點為 JMA 最新分析位置。</p>}
                 {!historyModel && storms.length > 0 && <p className="source-note">JMA 尚未提供這個颱風的已走路徑節點。</p>}
               </details>
-            </section>
-            <section>
+            </section>}
+            <section><details className="layer-card"><summary>系集路徑<ChevronDown size={16}/></summary>
               <div className="section-label">
                 04 <span>系集路徑</span>
                 <span className="tiny-pill">模式</span>
@@ -557,7 +569,7 @@ export default function Observatory() {
               <p className="source-note">
                 系集模式以彩色線呈現成員路徑；GFS 與 ECMWF IFS HRES 顯示確定性路徑。點選路徑可看預報點。不同模式起報時間可能不同。
               </p>
-            </section>
+            </details></section>
             <a
               className="data-link"
               href="https://www.jma.go.jp/bosai/map.html#contents=typhoon"
@@ -570,7 +582,7 @@ export default function Observatory() {
         )}
         {thermal&&<article className="cloud-temperature-popup" style={{left:Math.max(8,Math.min(thermal.popupPosition.width-232,thermal.popupPosition.x+12)),top:Math.max(8,Math.min(thermal.popupPosition.height-190,thermal.popupPosition.y-60))}} aria-label="雲頂亮溫資訊"><button className="icon-button close" aria-label="關閉雲頂溫度" onClick={()=>setThermal(null)}><X size={16}/></button><small>OTT · 亮溫估計值</small><strong>{thermal.loading?'讀取中…':thermal.error?'資料未取得':thermal.temperature.toFixed(1)+' °C'}</strong><p>{thermal.lat.toFixed(2)}° · {thermal.lon.toFixed(2)}°</p><p>{new Date(thermal.time).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})} · UTC+8</p><footer>{thermal.error||'估計值，非原始定標溫度；有雲時近似雲頂溫度，晴空可能為地表亮溫。'}</footer></article>}
         {pointInfo && (
-          <PointDetails data={pointInfo} onClose={() => setPointInfo(null)} />
+          pointInfo.kind==="cwa"||pointInfo.kind==="warning-area"?<CwaPointDetails data={pointInfo} onClose={()=>setPointInfo(null)}/>:<PointDetails data={pointInfo} onClose={() => setPointInfo(null)} />
         )}
         <div className="timeline">
           <div className="time-top">
@@ -749,7 +761,7 @@ export default function Observatory() {
             >
               <X />
             </button>
-            <div className="eyebrow">使用指南</div><h2>如何閱讀衛星雲圖</h2><h3>選擇雲圖模式</h3><p>真實色適合白天查看雲層外觀；黑白紅外線可全天觀察雲頂溫度與雲系形狀；OTT 強化以色階凸顯不同溫度的雲頂，色彩不是實際雲的顏色，也不直接等於雨量或風速。自動模式依地圖中心與影像時間切換日夜顯示。</p><h3>時間與動畫</h3><p>畫面標示衛星觀測時間與時區，不是預報時間。拖曳時間軸選擇影像，或設定日期、時間與動畫起始點；播放間隔控制影格之間的觀測時間差。手機可展開時間設定，完成後收合以保留地圖空間。歷史影像可能因來源保存期限而缺圖。</p><h3>查看颱風路徑</h3><p>官方路徑與模式路徑可分別開關。點選預報位置可查看該時間與來源提供的資訊；不同系集成員呈現可能的路徑分歧，不是同時存在多個颱風。已走路徑是目前颱風過去的位置。</p><h3>風圈與警戒範圍</h3><p>黃色表示烈風圈（30 節以上），紅色表示暴風圈（50 節以上）。白色虛線圓表示預報中心的機率範圍，不是風圈；紅色暴風警戒域也不表示整區目前都有暴風。資料時間與衛星影像時間可能不同，請查看圖層標示。</p><h3>地圖與下載</h3><p>拖曳移動、縮放查看細節。衛星涵蓋範圍以向日葵衛星可觀測區域為限；放大與下載不會新增衛星原本沒有的細節。</p><p className="muted">本網站供天氣觀察，防災請以中央氣象署與所在地官方警報為準。</p><a href="https://himawari8.nict.go.jp/" target="_blank" rel="noreferrer">衛星資料來源：NICT ↗</a> · <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" rel="noreferrer">日本氣象廳颱風資訊 ↗</a>
+            <div className="eyebrow">使用指南</div><h2>如何閱讀衛星雲圖</h2><h3>選擇雲圖模式</h3><p>真實色適合白天查看雲層外觀；黑白紅外線可全天觀察雲頂溫度與雲系形狀；OTT 強化以色階凸顯不同溫度的雲頂，色彩不是實際雲的顏色，也不直接等於雨量或風速。自動模式依地圖中心與影像時間切換日夜顯示。</p><h3>時間與動畫</h3><p>畫面標示衛星觀測時間與時區，不是預報時間。拖曳時間軸選擇影像，或設定日期、時間與動畫起始點；播放間隔控制影格之間的觀測時間差。手機可展開時間設定，完成後收合以保留地圖空間。歷史影像可能因來源保存期限而缺圖。</p><h3>查看颱風路徑</h3><p>官方路徑與模式路徑可分別開關。點選預報位置可查看該時間與來源提供的資訊；不同系集成員呈現可能的路徑分歧，不是同時存在多個颱風。已走路徑是目前颱風過去的位置。</p><h3>CWA 警報與風圈</h3><p>紅字颱風警報卡片顯示 CWA 最新有效公告；切換 CWA／JMA 只改變颱風路徑來源，不改變臺灣警報來源。CWA 黃色為七級風、橘紅色為十級風，白色虛線圓為中心70%機率範圍。四象限未提供時使用來源平均半徑，不以 JMA 資料代填。紅色縣市為本站以 CWA 預測七級風圈估算的可能影響，不是官方陸上警報。近海100公里橙色虛線是本站參考線，不是官方警戒邊界。</p><h3>JMA 風圈與警戒範圍</h3><p>黃色表示烈風圈（30 節以上），紅色表示暴風圈（50 節以上）。白色虛線圓表示預報中心的機率範圍，不是風圈；紅色暴風警戒域也不表示整區目前都有暴風。資料時間與衛星影像時間可能不同，請查看圖層標示。</p><h3>地圖與下載</h3><p>拖曳移動、縮放查看細節。衛星涵蓋範圍以向日葵衛星可觀測區域為限；放大與下載不會新增衛星原本沒有的細節。</p><p className="muted">本網站供天氣觀察，防災請以中央氣象署與所在地官方警報為準。</p><a href="https://himawari8.nict.go.jp/" target="_blank" rel="noreferrer">衛星資料來源：NICT ↗</a> · <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" rel="noreferrer">日本氣象廳颱風資訊 ↗</a>
 </article>
         </div>
       )}

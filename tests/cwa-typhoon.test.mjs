@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {normalizeWarning,radii,windRing,intersects,forecastImpacts,capPolygon} from '../lib/cwa-typhoon.mjs';
+const now=Date.parse('2026-10-17T00:00Z');
+const raw=(extra={})=>({success:'true',records:{info:[{language:'zh-TW',effective:'2026-10-16T23:00Z',expires:'2026-10-17T03:00Z',headline:'海上陸上颱風警報',description:{section:[{title:'陸上警戒區',value:'臺東縣'}]},area:[{areaDesc:'全臺',polygon:'22,120 23,120 23,121'}],...extra}]}});
+test('active warning only uses explicit land warning; delivery areas are not warnings',()=>{const w=normalizeWarning(raw(),now);assert.equal(w.active,true);assert.deepEqual(w.officialCounties,['臺東縣']);assert.equal(w.polygons.length,1)});
+test('cancelled and expired warnings never render active',()=>{assert.equal(normalizeWarning(raw({headline:'解除颱風警報'}),now).active,false);assert.equal(normalizeWarning(raw(),now+86400000).state,'expired');assert.throws(()=>normalizeWarning({}))});
+test('CAP coordinates are converted and closed',()=>{assert.deepEqual(capPolygon('22,120 23,120 23,121').coordinates[0][0],[120,22]);assert.equal(capPolygon('bad'),null)});
+test('quadrants retain zero and missing values are not fabricated',()=>{const r=radii({Radius:'50',QuadrantRadii:{Radius:['NE','SE','SW','NW'].map((d,i)=>({'@dir':d,'#text':String(i*10)}))}});assert.equal(r.asymmetric,true);assert.equal(r.quadrants[0],0);assert.equal(radii({Radius:'-'}),null);assert.ok(windRing({lon:120,lat:23,r15:r}))});
+test('geometry intersects crossing edges and excludes holes',()=>{const ring=[[0,0],[2,0],[2,2],[0,2],[0,0]];assert.equal(intersects(ring,{type:'Polygon',coordinates:[[[1,-1],[3,-1],[3,1],[1,1],[1,-1]]]}),true);assert.equal(intersects(ring,{type:'Polygon',coordinates:[[[-5,-5],[5,-5],[5,5],[-5,5],[-5,-5]],[[-1,-1],[3,-1],[3,3],[-1,3],[-1,-1]]]}),false)});
+test('probability circle alone never creates wind impact',()=>{const p={lon:120,lat:23,time:new Date(now).toISOString(),r15:null,probabilityKm:1000};const r=forecastImpacts([{id:'x',name:'x',current:p,forecast:[]}],{features:[]},now);assert.equal(r.checked,0);assert.equal(r.missing,1)});

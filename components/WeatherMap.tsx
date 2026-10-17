@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
+import {useCwaTracks} from "./useCwaTracks";
+import {useTyphoonWarningLayer} from "./TyphoonWarningLayer";
 import Map from "ol/Map";
 import {useRadar} from "./useRadar";
 import {incomingLayerReady} from "@/lib/radar-loading.mjs";
@@ -44,6 +46,7 @@ export type MapAPI = {
   export: () => void;
 };
 export default function WeatherMap(p: {
+  cwa:any; agency:string; warningLayers:any; cwaError:boolean; cwaHistory:boolean;
   radars: string[];
   onRadarReady:(ready:boolean)=>void;
   onRadarStatus:(status:string)=>void;
@@ -99,8 +102,8 @@ export default function WeatherMap(p: {
           style: new Style({ fill: new Fill({ color: "#172b38" }) }),
         }),
         coasts,
-        new VectorLayer({ source: vectors.current }),
-        new VectorLayer({ source: selection.current }),
+        new VectorLayer({ source: vectors.current, zIndex:20 }),
+        new VectorLayer({ source: selection.current, zIndex:21 }),
         new VectorLayer({source:probeSelection.current,style:new Style({image:new CircleStyle({radius:7,fill:new Fill({color:"#a6ded3"}),stroke:new Stroke({color:"#fff",width:2})})})}),
       ],
       view: new View({
@@ -558,6 +561,8 @@ export default function WeatherMap(p: {
       cb.current.onPoint(null);
     }
   }, [p.models]);
+  useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind,p.forecast,p.cwaHistory);
+  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError);
   return (
     <div
       ref={el}
