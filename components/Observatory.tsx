@@ -39,8 +39,8 @@ const regions = [
   { name: "歐洲", box: [-15, 30, 40, 65] },
   { name: "北美洲", box: [-135, 10, -55, 65] },
 ];
-export default function Observatory({simulateWarnings=false}:{simulateWarnings?:boolean}={}) {
-  const {data:cwa,error:cwaError}=useTyphoonWarnings(simulateWarnings);
+export default function Observatory() {
+  const {data:cwa,error:cwaError}=useTyphoonWarnings();
   const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
   function changeAgency(v:string){setAgency(v);setPointInfo(null)}
   const [radars,setRadars]=useState<string[]>([]),[radarReady,setRadarReady]=useState(true),[radarStatus,setRadarStatus]=useState("");
@@ -256,11 +256,10 @@ export default function Observatory({simulateWarnings=false}:{simulateWarnings?:
           onLoading={() => setFrameReady(false)}
           onCenter={setCenter}
           onStatus={setStatus}
-          onReady={(a) => {api.current = a;if(simulateWarnings)a.region([117,20,125,27])}}
+          onReady={(a) => (api.current = a)}
         />
         <TyphoonWarning data={cwa} error={cwaError} agency={agency} setAgency={changeAgency} layers={warningLayers} setLayers={setWarningLayers} onLocate={()=>api.current?.region([117,20,125,27])}/>
         <div className="map-top">
-          {simulateWarnings&&<div className="simulation-ribbon">模擬資料｜僅供介面預覽，並非實際警報</div>}
           <div className="eyebrow">
             <span /> EARTH OBSERVATION
           </div>
