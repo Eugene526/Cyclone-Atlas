@@ -17,8 +17,8 @@ export default function TyphoonWarning({data,error,agency,setAgency,layers,setLa
  {active&&<><p><b>發布：</b>{tw(w.issuedAt)} UTC+8<br/><b>有效至：</b>{tw(w.expires)} UTC+8</p>{w.sections.map((s:any,i:number)=><details key={i} className="warning-detail"><summary>{s.title}</summary><p>{s.text}</p></details>)}<details className="warning-detail"><summary>官方警報圖</summary>{w.imageUrl&&!imageError?<a href={w.web} target="_blank" rel="noreferrer"><img src={w.imageUrl} alt="中央氣象署最新颱風警報圖" loading="lazy" onError={()=>setImageError(true)}/></a>:<p>警報圖尚未完成時間核對，請查看官方警報頁。</p>}</details></>}
  {!active&&!unknown&&w?.issuedAt&&<p className="warning-note">前次公告：{w.lastHeadline} · {tw(w.issuedAt)} UTC+8。舊警報不當作目前警報。</p>}
  <details className="warning-detail" open><summary>地圖警示圖層</summary>
- {[['nearshore','近海約100公里參考範圍'],['official','CWA 官方警戒範圍'],['impact','預測風圈可能影響縣市']].map(([id,label])=><label className="warning-toggle" key={id}><input type="checkbox" checked={layers[id]} onChange={e=>setLayers({...layers,[id]:e.target.checked})}/>{label}</label>)}
- <p className="warning-note">橙色虛線為本站估算的近海參考線，不是官方海上警戒區。橙紅色實線為 API 提供的有效警戒多邊形；缺少座標時不代畫。</p>
+ {[['nearshore','海警參考線（約100公里）'],['official','CWA 官方警戒範圍'],['impact','預測風圈可能影響縣市']].map(([id,label])=><label className="warning-toggle" key={id}><input type="checkbox" checked={layers[id]} onChange={e=>setLayers({...layers,[id]:e.target.checked})}/>{label}</label>)}
+ <p className="warning-note">橙色虛線為距臺灣及澎湖約100公里的海警參考線，非官方警戒範圍；七級風圈與參考區重疊處為淡紅色。橙紅色實線為 API 提供的有效警戒多邊形；缺少座標時不代畫。</p>
  {active&&!w.polygons?.length&&<p className="warning-note">本報未提供可定位的警戒多邊形，海上範圍請看警報文字與官方警報圖。</p>}
  <button className="warning-locate" onClick={onLocate}><LocateFixed size={15}/>定位臺灣警戒範圍</button></details>
  <details className="warning-detail" open><summary>可能影響縣市 <span>本站估算</span></summary>

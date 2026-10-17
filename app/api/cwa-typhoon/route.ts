@@ -1,5 +1,7 @@
 import { normalizeCyclones, normalizeWarning, forecastImpacts } from '@/lib/cwa-typhoon.mjs';
 import counties from '@/public/data/taiwan-counties.json';
+import seaZone from '@/public/data/taiwan-sea-zone.json';
+import {probabilityEnvelope,seaWindOverlap} from '@/lib/cwa-geometries.mjs';
 export const maxDuration = 60;
 let cache: {until:number,data:any}|null=null;
 let pending:Promise<any>|null=null;
@@ -20,7 +22,7 @@ async function load(){
  let chartAvailable=false;
  if(warning.active){try{const text=await(await source('https://www.cwa.gov.tw/Data/js/typhoon/TY_WARN-Data.js')).text();const stamp=text.match(/var File_Time\s*=\s*['"](\d{12})['"]/)?.[1];
  if(stamp){const t=Date.parse(`${stamp.slice(0,4)}-${stamp.slice(4,6)}-${stamp.slice(6,8)}T${stamp.slice(8,10)}:${stamp.slice(10,12)}:00Z`);chartAvailable=Math.abs(t-Date.parse(warning.issuedAt || ""))<6*3600000;}}catch{}}
- const data={warning:{...warning,chartAvailable,imageUrl:chartAvailable?'/api/cwa-typhoon?image=1':null},storms:cyclone?.storms||[],trackStatus:!cyclone?'unavailable':fresh?'ready':'stale',issuedAt:cyclone?.issuedAt||null,checkedAt:new Date().toISOString(),impacts:cyclone&&fresh?forecastImpacts(cyclone.storms,counties):{items:[],checked:0,missing:0,method:'CWA 路徑資料未取得或已過期，暫不估算'},sources:{warning:'https://opendata.cwa.gov.tw/dataset/warning/W-C0034-001',track:'https://opendata.cwa.gov.tw/dataset/warning/W-C0034-005'}};
+ const data={warning:{...warning,chartAvailable,imageUrl:chartAvailable?'/api/cwa-typhoon?image=1':null},storms:cyclone?.storms||[],trackStatus:!cyclone?'unavailable':fresh?'ready':'stale',issuedAt:cyclone?.issuedAt||null,checkedAt:new Date().toISOString(),impacts:cyclone&&fresh?forecastImpacts(cyclone.storms,counties):{items:[],checked:0,missing:0,method:'CWA 路徑資料未取得或已過期，暫不估算'},probabilityEnvelopes:cyclone&&fresh?cyclone.storms.map(probabilityEnvelope).filter(Boolean):[],seaWindOverlap:cyclone&&fresh?seaWindOverlap(cyclone.storms,seaZone):{type:'FeatureCollection',features:[]},sources:{warning:'https://opendata.cwa.gov.tw/dataset/warning/W-C0034-001',track:'https://opendata.cwa.gov.tw/dataset/warning/W-C0034-005'}};
  cache={until:Date.now()+180000,data};return data;
  })();try{return await pending}finally{pending=null}
 }

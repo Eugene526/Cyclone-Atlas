@@ -562,7 +562,7 @@ export default function WeatherMap(p: {
     }
   }, [p.models]);
   useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind,p.forecast,p.cwaHistory);
-  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError);
+  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError,p.wind);
   return (
     <div
       ref={el}

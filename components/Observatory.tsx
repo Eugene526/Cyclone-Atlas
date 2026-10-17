@@ -513,7 +513,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />
-                  {agency==="cwa"?"七級／十級風圈（含預測）":"烈風圈與暴風圈"}
+                  {agency==="cwa"?"目前七級／十級風圈":"烈風圈與暴風圈"}
                 </span>
                 <input
                   type="checkbox"
@@ -524,7 +524,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot coral" />
-                  {agency==="cwa"?"預報路徑與70%機率圓":"預報圓與暴風警戒域"}
+                  {agency==="cwa"?"預報路徑與70%機率範圍":"預報圓與暴風警戒域"}
                 </span>
                 <input
                   type="checkbox"
