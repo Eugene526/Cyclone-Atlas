@@ -10,7 +10,9 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  if(forecast){const envelope=data.probabilityEnvelopes?.find((v:any)=>v.properties?.stormId===s.id);if(envelope){const fs=new GeoJSON().readFeatures({type:'FeatureCollection',features:[envelope]},{featureProjection:'EPSG:3857'});for(const f of fs){f.setStyle(new Style({stroke:new Stroke({color:'#dbe8f4',width:1.8,lineDash:[5,4]}),fill:new Fill({color:'rgba(219,232,244,.07)'})}));source.addFeature(f)}}}
  const points=[s.current,...(forecast?s.forecast:[])];
  for(const p of points){const current=p===s.current;
- if(wind&&current){for(const [key,color] of [['r15','#f4c460'],['r25','#ff795f']]){const ring=windRing(p,key);if(ring)add(new Polygon([ring.map((v:number[])=>fromLonLat(v))]),color,current?color+'1a':undefined,current?undefined:[3,4])}}
+ // The 70% probability circles are replaced by one envelope above; both
+ // current and forecast seven-/ten-level wind circles remain independent.
+ if(wind){for(const [key,color] of [['r15','#f4c460'],['r25','#ff795f']]){const ring=windRing(p,key);if(ring)add(new Polygon([ring.map((v:number[])=>fromLonLat(v))]),color,current?color+'1a':undefined,current?undefined:[3,4])}}
 
  const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:p,issue:s.issue});f.setStyle(new Style({image:new Circle({radius:current?6:4,fill:new Fill({color:current?'#ff9c7c':'#fff'}),stroke:new Stroke({color:'#10202f',width:2})}),text:current?new Text({text:s.name,offsetY:-20,font:'600 12px sans-serif',fill:new Fill({color:'#fff'}),stroke:new Stroke({color:'#0e1721',width:3})}):undefined}));source.addFeature(f);
  }

@@ -513,7 +513,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />
-                  {agency==="cwa"?"目前七級／十級風圈":"烈風圈與暴風圈"}
+                  {agency==="cwa"?"七級／十級風圈（現在與預報）":"烈風圈與暴風圈"}
                 </span>
                 <input
                   type="checkbox"
