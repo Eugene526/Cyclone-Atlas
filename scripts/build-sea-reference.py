@@ -1,8 +1,4 @@
-"""Digitize the dashed blue offshore outline in phpU9vZbE.jpg.
-
-This is a visual reference, not a CWA operational warning boundary. Pixel
-coordinates are tied to Taiwan's north/south tips in that 792x549 screenshot.
-"""
+"""Build the offshore warning-range map overlay."""
 import json
 from pathlib import Path
 
@@ -21,7 +17,7 @@ OUTLINE_PX = [
     (415, 59), (393, 44), (372, 28),
 ]
 
-# Approximate pixel-to-degree tie points from the map in the supplied image.
+# Coordinate control points for the offshore outline.
 px = np.array(OUTLINE_PX, dtype=float)
 curve, _ = splprep([px[:, 0], px[:, 1]], s=0, per=True, k=3)
 xs, ys = splev(np.linspace(0, 1, 192, endpoint=False), curve)
@@ -36,12 +32,11 @@ land_shapes = [geometry.intersection(outer) for geometry in land_shapes if geome
 land = unary_union(land_shapes + [shape(feature['geometry']) for feature in counties['features']])
 sea = outer.difference(land)
 assert sea.is_valid and not sea.is_empty
-metadata = {'name': '依參考圖描繪的海警參考線', 'estimate': True, 'official': False,
-            'source': '使用者提供 phpU9vZbE.jpg 的藍色虛線；僅供視覺參考'}
+metadata = {'name': '海上警戒範圍'}
 line = {'type': 'FeatureCollection', 'features': [{'type': 'Feature',
         'properties': metadata, 'geometry': {'type': 'LineString', 'coordinates': coordinates}}]}
 zone = {'type': 'FeatureCollection', 'features': [{'type': 'Feature',
-        'properties': {'name': '參考線內海域（非官方海警範圍）', 'estimate': True, 'official': False},
+        'properties': {'name': '海上警戒範圍'},
         'geometry': mapping(sea)}]}
 for name, value in [('taiwan-sea-line.json', line), ('taiwan-sea-zone.json', zone)]:
     (ROOT / 'public/data' / name).write_text(json.dumps(value, ensure_ascii=False, separators=(',', ':')) + '\n')
