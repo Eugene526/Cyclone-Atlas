@@ -78,6 +78,7 @@ export default function Observatory() {
     [bounds, setBounds] = useState([120, 15, 155, 35]),
     [areaError, setAreaError] = useState("");
   const api = useRef<MapAPI | null>(null),
+    preloadAttempt = useRef(0),
     liveRef = useRef(live);
   liveRef.current = live;
   const withinSatellite = Math.cos(center[1] * Math.PI / 180) * Math.cos((center[0] - 140.7) * Math.PI / 180) > 6378137 / 42164160;
@@ -211,6 +212,7 @@ export default function Observatory() {
     setLive(false);
     setMobileTimeOpen(false);
     if (preloading) {
+      preloadAttempt.current++;
       api.current?.cancelPreload();
       setPreloading(false);
       setStatus("已取消動畫預載");
@@ -226,18 +228,22 @@ export default function Observatory() {
     if (Date.parse(time) < startMs || Date.parse(time) >= end) setTime(start);
     const frames = satelliteAnimationFrames(start, rangeEnd, step);
     if (!frames.length) return;
+    const attempt = ++preloadAttempt.current;
     setPreloading(true);
     setStatus(`只預載目前地圖範圍：0 / ${frames.length} 個影格`);
     try {
-      await api.current.preload(frames, (frameTime) => mode === "auto" ? (isNight(frameTime, center[0], center[1]) ? "bw" : "rgb") : mode, (done, total) => {
+      const result = await api.current.preload(frames, (frameTime) => mode === "auto" ? (isNight(frameTime, center[0], center[1]) ? "bw" : "rgb") : mode, (done, total) => {
         if (done === total || done % 8 === 0) setStatus(`預載目前地圖範圍：${done} / ${total} 張圖磚`);
       });
+      if (attempt !== preloadAttempt.current || result.cancelled) return;
       setPreloading(false);
-      setStatus("目前地圖範圍的動畫影格已預載");
+      setStatus(result.failed ? `預載完成；${result.failed} 張圖磚未取得，播放時會再嘗試載入` : "目前地圖範圍的動畫影格已預載");
       setPlay(true);
     } catch {
+      if (attempt !== preloadAttempt.current) return;
       setPreloading(false);
-      setStatus("影格預載中斷，請重試");
+      setStatus("部分影格預載未完成，先開始播放；缺漏影格會於播放時載入");
+      setPlay(true);
     }
   }
   return (

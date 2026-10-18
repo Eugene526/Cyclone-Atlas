@@ -44,7 +44,7 @@ export type MapAPI = {
   region: (bounds: number[]) => void;
   zoom: (delta: number) => void;
   export: () => void;
-  preload: (times: string[], modeForTime: (time: string) => string, progress: (done: number, total: number) => void) => Promise<void>;
+  preload: (times: string[], modeForTime: (time: string) => string, progress: (done: number, total: number) => void) => Promise<{ cancelled: boolean; failed: number; total: number }>;
   cancelPreload: () => void;
 };
 export default function WeatherMap(p: {
@@ -234,27 +234,42 @@ export default function WeatherMap(p: {
           for (let x = range.minX; x <= range.maxX; x++) {
             for (let y = range.minY; y <= range.maxY; y++) {
               const tile = src.getTile(z, x, y, 1, projection);
-              if (tile.getState() !== 2 && tile.getState() !== 3 && tile.getState() !== 4) tiles.push(tile);
+              if (tile.getState() !== 2 && tile.getState() !== 4) tiles.push(tile);
             }
           }
         }
-        let done = 0, cursor = 0;
+        let done = 0, failed = tiles.filter((tile) => tile.getState() === 3).length, cursor = 0;
         progress(0, tiles.length);
+        const waitForTile = (tile: any) => new Promise<boolean>((resolve) => {
+          let key: any, settled = false;
+          const finish = (ok: boolean) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            if (key) unByKey(key);
+            resolve(ok);
+          };
+          const check = () => {
+            const state = tile.getState();
+            if (state >= 2) finish(state === 2 || state === 4);
+          };
+          const timeout = setTimeout(() => finish(false), 30_000);
+          key = tile.on("change", check);
+          try {
+            if (tile.getState() === 0) tile.load();
+            check();
+          } catch { finish(false); }
+        });
         const worker = async () => {
           while (cursor < tiles.length && token === preloadToken.current) {
             const tile = tiles[cursor++];
-            if (tile.getState() === 0) tile.load();
-            if (tile.getState() === 1) await new Promise<void>((resolve) => {
-              const key = tile.on("change", () => {
-                if (tile.getState() >= 2) { unByKey(key); resolve(); }
-              });
-              if (tile.getState() >= 2) { unByKey(key); resolve(); }
-            });
+            if (tile.getState() !== 3 && tile.getState() !== 4 && !(await waitForTile(tile))) failed++;
             done++;
-            progress(done, tiles.length);
+            try { progress(done, tiles.length); } catch { /* progress UI must not interrupt tile loading */ }
           }
         };
         await Promise.all(Array.from({ length: Math.min(8, tiles.length) }, worker));
+        return { cancelled: token !== preloadToken.current, failed, total: tiles.length };
       },
       export: () => {
         const oldSize = m.getSize()!,
