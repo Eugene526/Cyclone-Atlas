@@ -49,6 +49,7 @@ export type MapAPI = {
 };
 export default function WeatherMap(p: {
   cwa:any; agency:string; warningLayers:any; cwaError:boolean; cwaHistory:boolean;
+  advisoryItems?: any[];
   radars: string[];
   onRadarReady:(ready:boolean)=>void;
   onRadarStatus:(status:string)=>void;
@@ -350,6 +351,25 @@ export default function WeatherMap(p: {
     };
   }, []);
   useRadar(map,p);
+  useEffect(()=>{
+    if(!map.current||!p.advisoryItems?.length)return;
+    const byCounty=new globalThis.Map<string,any[]>();
+    for(const item of p.advisoryItems){const name=String(item.area||'').replaceAll('台','臺');byCounty.set(name,[...(byCounty.get(name)||[]),item])}
+    let active=true;const source=new VectorSource();const layer=new VectorLayer({source,zIndex:19});map.current.addLayer(layer);
+    fetch('/data/taiwan-counties.json').then(r=>r.json()).then(data=>{
+      if(!active)return;
+      for(const feature of new GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'})){
+        const name=String(feature.get('name')||'').replaceAll('台','臺'),alerts=byCounty.get(name);if(!alerts)continue;
+        const rank=(a:any)=>a.level==='red'?4:a.level==='orange'?3:a.level==='yellow'?2:/颱風|豪雨/.test(a.title)?3:1;
+        const level=[...alerts].sort((a,b)=>rank(b)-rank(a))[0]?.level;
+        const color=level==='red'?'rgba(239,69,77,.58)':level==='orange'?'rgba(255,136,46,.55)':level==='yellow'?'rgba(250,219,70,.52)':'rgba(106,180,230,.44)';
+        const stroke=level==='red'?'#ff8589':level==='orange'?'#ffb66c':level==='yellow'?'#fff49b':'#9ad0ed';
+        feature.setStyle(new Style({fill:new Fill({color}),stroke:new Stroke({color:stroke,width:2})}));
+        source.addFeature(feature);
+      }
+    }).catch(()=>{});
+    return()=>{active=false;map.current?.removeLayer(layer)};
+  },[p.advisoryItems]);
   useEffect(() => {
     if (!map.current || !p.time) return;
     const m = map.current;

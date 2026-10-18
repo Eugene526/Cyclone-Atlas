@@ -1,6 +1,7 @@
 "use client";
 import TyphoonWarning from "./TyphoonWarning";
 import CwaPointDetails from "./CwaPointDetails";
+import StructuralAnalysis from "./StructuralAnalysis";
 import {useTyphoonWarnings} from "./useTyphoonWarnings";
 import "./typhoon-warning.css";
 import {acceptThermal} from "@/lib/probe-state.mjs";
@@ -77,6 +78,7 @@ export default function Observatory() {
     [historyId, setHistoryId] = useState(""),
     [bounds, setBounds] = useState([120, 15, 155, 35]),
     [areaError, setAreaError] = useState("");
+  const structureStorms=agency==="cwa"?(cwa?.storms||[]):storms.flatMap((st:any)=>{const p=st.data?.find((d:any)=>d.advancedHours===0);return p?.center?[{id:st.id,name:st.data?.[0]?.name?.en||st.id,en:"JMA",current:{lat:p.center[0],lon:p.center[1],time:p.validtime?.UTC||time}}]:[]});
   const api = useRef<MapAPI | null>(null),
     preloadAttempt = useRef(0),
     liveRef = useRef(live);
@@ -551,6 +553,7 @@ export default function Observatory() {
                 </p>
               )}
               </>}
+              {structureStorms.length>0&&<StructuralAnalysis storms={structureStorms}/>}
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />

@@ -1,0 +1,37 @@
+import {json} from '@/lib/upstream';
+
+const BASE='https://tropic.ssec.wisc.edu/real-time/adt';
+type Fix={time:string;ci:number|null;pressure:number|null;windKt:number|null;finalT:number|null;adjustedRawT:number|null;rawT:number|null;centerTemp:number|null;meanCloudTemp:number|null;scene:string;rmwKm:number|null;lat:number|null;lon:number|null;satellite:string;vza:number|null;weakening:string;rapidChange:string;extratropical:string;subtropical:string};
+type Analysis={stormId:string;stormName:string;version:string;regionName:string;date:string;time:string;ci:number|null;pressure:number|null;windKt:number|null;finalT:number|null;adjustedRawT:number|null;rawT:number|null;centerTemp:number|null;meanCloudTemp:number|null;scene:string;lat:number;lon:number;satellite:string;vza:number|null;weakening:string;rapidChange:string;extratropical:string;subtropical:string;fixes:Fix[];source:string;distanceKm:number};
+let memo:{until:number;data:Analysis[]}|null=null;let pending:Promise<Analysis[]>|null=null;
+const num=(s:string|undefined)=>{const n=Number(s);return s&&Number.isFinite(n)?n:null};
+const distance=(a:number,b:number,c:number,d:number)=>{const r=Math.PI/180,p=(c-a)*r,l=(d-b)*r,x=Math.sin(p/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(l/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
+async function get(url:string){const r=await fetch(url,{signal:AbortSignal.timeout(15000),next:{revalidate:300}});if(!r.ok)throw Error(`CIMSS ADT ${r.status}`);return r.text()}
+function text(html:string){return html.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' ').trim()}
+function capture(s:string,re:RegExp){return s.match(re)?.[1]?.trim()||''}
+function signedDms(value:string){const m=value.match(/([\d.]+):([\d.]+):([\d.]+)\s*([NSEW])/i);if(!m)return null;const x=Number(m[1])+Number(m[2])/60+Number(m[3])/3600;return /[SW]/i.test(m[4])?-x:x}
+const months:Record<string,string>={JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12'};
+function parseHistory(line:string):Fix|null{
+ const t=line.trim().split(/\s+/);if(t.length<23||!/^[0-9]{4}[A-Z]{3}[0-9]{2}$/.test(t[0])||!/^[0-9]{6}$/.test(t[1]))return null;
+ const width=t[8]==='NO'&&t[9]==='LIMIT'?2:1,f=t.slice(8+width),satIndex=f.indexOf('HIM-9'),fixIndex=f.indexOf('ARCHER');
+ const lat=fixIndex>=2?num(f[fixIndex-2]):null,lon=fixIndex>=2?num(f[fixIndex-1]):null;
+ return {time:`${t[0].slice(0,4)}-${months[t[0].slice(4,7)]}-${t[0].slice(7,9)}T${t[1].slice(0,2)}:${t[1].slice(2,4)}:${t[1].slice(4,6)}Z`,ci:num(t[2]),pressure:num(t[3]),windKt:num(t[4]),finalT:num(t[5]),adjustedRawT:num(t[6]),rawT:num(t[7]),weakening:f[0]||'',rapidChange:f[1]||'',extratropical:f[2]||'',subtropical:f[3]||'',centerTemp:num(f[4]),meanCloudTemp:num(f[5]),scene:f[6]||'',rmwKm:num(f[7]),lat,lon,satellite:satIndex>=0?f[satIndex]:'',vza:satIndex>=0?num(f[satIndex+1]):null};
+}
+function parsePage(id:string,html:string,listedName:string):Omit<Analysis,'fixes'|'source'|'distanceKm'>|null{
+ const raw=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i)?.[1];if(!raw)return null;const s=raw.replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/[ \t]+/g,' ').replace(/\r/g,''),latLon=s.match(/Lat\s*:\s*([^\n]+?)\s+Lon\s*:\s*([^\n]+)/i);if(!latLon)return null;
+ const lat=signedDms(latLon[1]),lon=signedDms(latLon[2]);if(lat===null||lon===null)return null;
+ const intensity=s.match(/CI#\s*\/Pressure\/\s*Vmax\s+([\d.]+)\s*\/\s*([\d.]+)mb\s*\/\s*([\d.]+)kt/i),tn=s.match(/Final T#\s+Adj T#\s+Raw T#\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i),when=s.match(/Date\s*:\s*(\d{1,2})\s+([A-Z]{3})\s+(\d{4})\s+Time\s*:\s*(\d{2})(\d{2})(\d{2})\s*UTC/i);
+ if(!intensity||!when||!months[when[2]])return null;
+ const label=(re:RegExp)=>capture(s,re),scene=label(/Scene Type\s*:\s*([^\n]+)/i),ver=label(/ADT-Version\s+([^\s]+)/i);
+ return {stormId:id,stormName:listedName||id,version:ver||'ADT',regionName:label(/Ocean Basin\s*:\s*([^\n]+)/i)||'WEST PACIFIC',date:`${when[3]}-${months[when[2]]}-${when[1].padStart(2,'0')}`,time:`${when[4]}:${when[5]}:${when[6]}Z`,ci:Number(intensity[1]),pressure:Number(intensity[2]),windKt:Number(intensity[3]),finalT:Number(tn?.[1]||NaN),adjustedRawT:Number(tn?.[2]||NaN),rawT:Number(tn?.[3]||NaN),centerTemp:num(label(/Center Temp\s*:\s*([-\d.]+)C/i)),meanCloudTemp:num(label(/Cloud Region Temp\s*:\s*([-\d.]+)C/i)),scene,lat,lon,satellite:label(/Satellite Name\s*:\s*([^\s]+)/i),vza:num(label(/Satellite Viewing Angle\s*:\s*([\d.]+)/i)),weakening:label(/Weakening Flag\s*:\s*([^\n]+)/i),rapidChange:label(/Rapid Dissipation Flag\s*:\s*([^\n]+)/i),extratropical:label(/Extratropical Adjustment\s*:\s*([^\n]+)/i),subtropical:label(/Subtropical Adjustment\s*:\s*([^\n]+)/i)};
+}
+async function load():Promise<Analysis[]>{
+ if(memo&&memo.until>Date.now())return memo.data;if(pending)return pending;
+ pending=(async()=>{
+  const index=await get(`${BASE}/adt.html`),start=index.indexOf('<!-- westpacxx -->'),finish=start>=0?index.indexOf('</td>',start):-1,wp=start>=0?index.slice(start,finish>start?finish:undefined):'',storms=[...wp.matchAll(/<A\b[^>]*HREF=["']odt([0-9]{2}W)\.html["'][^>]*>([\s\S]*?)<\/A>/gi)].map(m=>({id:m[1].toUpperCase(),name:text(m[2])})).slice(0,8);
+  const entries=(await Promise.all(storms.map(async ({id,name})=>{try{const page=await get(`${BASE}/odt${id}.html`),analysis=parsePage(id,page,name);return analysis?{...analysis,pageUrl:`${BASE}/odt${id}.html`}:null}catch{return null}}))).filter((x):x is NonNullable<typeof x>=>!!x&&/WEST\s+PACIFIC/i.test(x.regionName));
+  // Keep the active official page result cached; history is loaded only after a storm is matched in GET().
+  const data=entries.map(({pageUrl,...a})=>({...a,fixes:[],source:pageUrl,distanceKm:0}));memo={until:Date.now()+300000,data};return data;
+ })();try{return await pending}finally{pending=null}
+}
+export async function GET(req:Request){const q=new URL(req.url).searchParams,lat=Number(q.get('lat')),lon=Number(q.get('lon')),name=(q.get('name')||'').toLowerCase();if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)return Response.json({error:'需要有效的中心座標'},{status:400});try{const all=await load(),ranked=all.map(s=>({...s,distanceKm:distance(lat,lon,s.lat,s.lon),nameMatch:!!name&&(s.stormName.toLowerCase().includes(name)||name.includes(s.stormName.toLowerCase())||s.stormId.toLowerCase()===name)})).sort((a,b)=>Number(b.nameMatch)-Number(a.nameMatch)||a.distanceKm-b.distanceKm),best=ranked[0];if(!best||(!best.nameMatch&&best.distanceKm>1200))return json({available:false,reason:all.length?`CIMSS ADT 有 ${all.length} 個西太平洋風暴分析，但與所選颱風相距最近仍為 ${Math.round(best?.distanceKm||0)} km。`:'CIMSS ADT 目前沒有列出西太平洋活躍風暴。',candidates:ranked.map(x=>({stormId:x.stormId,stormName:x.stormName,distanceKm:Math.round(x.distanceKm)})),checkedAt:new Date().toISOString(),source:'UW-CIMSS ADT'},120);const historyUrl=`${BASE}/${best.stormId}-list.txt`,history=await get(historyUrl),fixes=history.split(/\r?\n/).map(parseHistory).filter((v):v is Fix=>!!v).slice(-13);return json({available:true,...best,fixes,checkedAt:new Date().toISOString(),source:'UW-CIMSS ADT v'+best.version,historyUrl},120)}catch(e){return Response.json({available:false,error:'UW-CIMSS ADT 暫時無法讀取',detail:e instanceof Error?e.message:'upstream error',checkedAt:new Date().toISOString()},{status:502,headers:{'Cache-Control':'no-store'}})}}
