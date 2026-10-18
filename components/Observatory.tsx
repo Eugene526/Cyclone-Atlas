@@ -28,7 +28,7 @@ import {
   Focus,
 } from "lucide-react";
 import {radarLookahead} from "@/lib/radar-loading.mjs";
-import {satelliteAnimationFrames} from "@/lib/satellite-playback.mjs";
+import {resolveSatelliteAnimationStart, satelliteAnimationFrames} from "@/lib/satellite-playback.mjs";
 import WeatherMap, { MapAPI } from "./WeatherMap";
 import { Mode, tw, isNight } from "@/lib/satellite";
 const regions = [
@@ -219,8 +219,12 @@ export default function Observatory() {
     if (play) { setPlay(false); return; }
     if (!time || !rangeEnd || !api.current) return;
     const end = Date.parse(rangeEnd);
-    const start = animationStart ? Date.parse(animationStart) : end - hours * 3600000;
-    const frames = satelliteAnimationFrames(start, end, step);
+    const start = resolveSatelliteAnimationStart(animationStart, rangeEnd, hours);
+    if (!start) return;
+    const startMs = Date.parse(start);
+    if (start !== animationStart) setAnimationStart(start);
+    if (Date.parse(time) < startMs || Date.parse(time) >= end) setTime(start);
+    const frames = satelliteAnimationFrames(start, rangeEnd, step);
     if (!frames.length) return;
     setPreloading(true);
     setStatus(`只預載目前地圖範圍：0 / ${frames.length} 個影格`);
@@ -662,7 +666,7 @@ export default function Observatory() {
             <button
               className="play-button"
               title={preloading ? "取消預載" : play ? "暫停動畫" : "先載入目前範圍的全部影格，再播放"}
-              disabled={!time || (!!animationStart && new Date(rangeEnd).getTime() <= new Date(animationStart).getTime())}
+              disabled={!time || !rangeEnd}
               onClick={toggleAnimation}
             >
               {play || preloading ? <Pause size={18} /> : <Play size={18} />}
@@ -773,7 +777,7 @@ export default function Observatory() {
                 </select>
               </label>
             </div>
-            <p>{animationStart && rangeEnd && new Date(rangeEnd).getTime() <= new Date(animationStart).getTime() ? "目前已選最新可用影格，尚無後續影格可播放；請選擇較早時間。" : "拖曳下方時間軸可選影格；自訂時間後按播放，動畫從該時刻開始。"}</p>
+            <p>拖曳下方時間軸可選影格；自訂時間後按播放，動畫從該時刻開始。若起始時間等於結束時間，會自動改用前一段可播放時窗。</p>
           </section>
         )}
         </div>
