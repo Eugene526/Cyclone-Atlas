@@ -6,20 +6,18 @@ const blobs = new Map<string, string>();
 export function imagery(
   time: string,
   mode: string,
-  animation = false,
+  _animation = false,
   overview = false,
 ) {
-  const key = `${time}|${mode}|${animation}|${overview}`;
+  const key = `${time}|${mode}|${_animation}|${overview}`;
   const cached = sources.get(key);
   if (cached) return cached;
   const ir = mode !== "rgb",
     ns = overview
       ? [1, 2]
-      : animation
-        ? [1, 2, 4]
-        : ir
-          ? [1, 2, 4, 8, 10]
-          : [1, 2, 4, 8, 16, 20];
+      : ir
+        ? [1, 2, 4, 8, 10]
+        : [1, 2, 4, 8, 16, 20];
   const grid = new TileGrid({
     extent: [-5500000, -5500000, 5500000, 5500000],
     origin: [-5500000, 5500000],

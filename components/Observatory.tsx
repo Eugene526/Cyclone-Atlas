@@ -28,6 +28,7 @@ import {
   Focus,
 } from "lucide-react";
 import {radarLookahead} from "@/lib/radar-loading.mjs";
+import {satelliteAnimationFrames} from "@/lib/satellite-playback.mjs";
 import WeatherMap, { MapAPI } from "./WeatherMap";
 import { Mode, tw, isNight } from "@/lib/satellite";
 const regions = [
@@ -61,6 +62,7 @@ export default function Observatory() {
     [wind, setWind] = useState(true),
     [forecast, setForecast] = useState(true),
     [play, setPlay] = useState(false),
+    [preloading, setPreloading] = useState(false),
     [hours, setHours] = useState(3),
     [step, setStep] = useState(20),
     [panel, setPanel] = useState(
@@ -205,6 +207,35 @@ export default function Observatory() {
       .map((m) => ({ ...m, color: ({ ifs: "#61d8ee", aifs: "#ba9dff", gefs: "#f3c775", aigefs: "#e790bd", cmce: "#7bde9a", fens: "#9db1ec", wnv3: "#ff91ab", google: "#8aafff", fnv3: "#ffbe88", gfs: "#40d8ff", ecmwf: "#ffad42" } as Record<string, string>)[m.id] })),
     ...(agency==="jma"&&historyModel ? [historyModel] : []),
   ];
+  async function toggleAnimation() {
+    setLive(false);
+    setMobileTimeOpen(false);
+    if (preloading) {
+      api.current?.cancelPreload();
+      setPreloading(false);
+      setStatus("已取消動畫預載");
+      return;
+    }
+    if (play) { setPlay(false); return; }
+    if (!time || !rangeEnd || !api.current) return;
+    const end = Date.parse(rangeEnd);
+    const start = animationStart ? Date.parse(animationStart) : end - hours * 3600000;
+    const frames = satelliteAnimationFrames(start, end, step);
+    if (!frames.length) return;
+    setPreloading(true);
+    setStatus(`只預載目前地圖範圍：0 / ${frames.length} 個影格`);
+    try {
+      await api.current.preload(frames, (frameTime) => mode === "auto" ? (isNight(frameTime, center[0], center[1]) ? "bw" : "rgb") : mode, (done, total) => {
+        if (done === total || done % 8 === 0) setStatus(`預載目前地圖範圍：${done} / ${total} 張圖磚`);
+      });
+      setPreloading(false);
+      setStatus("目前地圖範圍的動畫影格已預載");
+      setPlay(true);
+    } catch {
+      setPreloading(false);
+      setStatus("影格預載中斷，請重試");
+    }
+  }
   return (
     <main className="observatory">
       <header className="topbar">
@@ -630,15 +661,11 @@ export default function Observatory() {
           <div className="scrubber">
             <button
               className="play-button"
-              title={play ? "暫停動畫" : "播放動畫"}
+              title={preloading ? "取消預載" : play ? "暫停動畫" : "先載入目前範圍的全部影格，再播放"}
               disabled={!time || (!!animationStart && new Date(rangeEnd).getTime() <= new Date(animationStart).getTime())}
-              onClick={() => {
-                setLive(false);
-                setPlay(!play);
-                setMobileTimeOpen(false);
-              }}
+              onClick={toggleAnimation}
             >
-              {play ? <Pause size={18} /> : <Play size={18} />}
+              {play || preloading ? <Pause size={18} /> : <Play size={18} />}
             </button>
             <button
               className="step-button"
@@ -694,7 +721,7 @@ export default function Observatory() {
               <i />
               {status}
             </span>
-            <span>每 10 分鐘觀測 · 每 1 分鐘檢查更新</span>
+            <span>{preloading ? "先預載目前可視範圍的全部影格" : "每 10 分鐘觀測 · 每 1 分鐘檢查更新"}</span>
             <label>
               動畫間隔{" "}
               <select

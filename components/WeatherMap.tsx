@@ -44,6 +44,8 @@ export type MapAPI = {
   region: (bounds: number[]) => void;
   zoom: (delta: number) => void;
   export: () => void;
+  preload: (times: string[], modeForTime: (time: string) => string, progress: (done: number, total: number) => void) => Promise<void>;
+  cancelPreload: () => void;
 };
 export default function WeatherMap(p: {
   cwa:any; agency:string; warningLayers:any; cwaError:boolean; cwaHistory:boolean;
@@ -70,6 +72,7 @@ export default function WeatherMap(p: {
 }) {
   const el = useRef<HTMLDivElement>(null),
     map = useRef<Map | null>(null),
+    preloadToken = useRef(0),
     sat = useRef<any>(null),
     vectors = useRef<VectorSource | null>(null),
     selection = useRef<VectorSource | null>(null),
@@ -216,6 +219,43 @@ export default function WeatherMap(p: {
         m
           .getView()
           .animate({ zoom: (m.getView().getZoom() || 4) + d, duration: 250 }),
+      cancelPreload: () => { preloadToken.current++; },
+      preload: async (times, modeForTime, progress) => {
+        const token = ++preloadToken.current;
+        const extent = m.getView().calculateExtent(m.getSize());
+        const projection = m.getView().getProjection();
+        const resolution = m.getView().getResolution()!;
+        const tiles: any[] = [];
+        for (const time of times) {
+          const src = imagery(time, modeForTime(time), true);
+          const grid = src.getTileGridForProjection(projection);
+          const z = grid.getZForResolution(resolution);
+          const range = grid.getTileRangeForExtentAndZ(extent, z);
+          for (let x = range.minX; x <= range.maxX; x++) {
+            for (let y = range.minY; y <= range.maxY; y++) {
+              const tile = src.getTile(z, x, y, 1, projection);
+              if (tile.getState() !== 2 && tile.getState() !== 3 && tile.getState() !== 4) tiles.push(tile);
+            }
+          }
+        }
+        let done = 0, cursor = 0;
+        progress(0, tiles.length);
+        const worker = async () => {
+          while (cursor < tiles.length && token === preloadToken.current) {
+            const tile = tiles[cursor++];
+            if (tile.getState() === 0) tile.load();
+            if (tile.getState() === 1) await new Promise<void>((resolve) => {
+              const key = tile.on("change", () => {
+                if (tile.getState() >= 2) { unByKey(key); resolve(); }
+              });
+              if (tile.getState() >= 2) { unByKey(key); resolve(); }
+            });
+            done++;
+            progress(done, tiles.length);
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(8, tiles.length) }, worker));
+      },
       export: () => {
         const oldSize = m.getSize()!,
           v = m.getView(),
@@ -351,32 +391,6 @@ export default function WeatherMap(p: {
       if (preview) m.removeLayer(preview);
     };
   }, [p.time, p.mode, p.playing]);
-  useEffect(() => {
-    if (!map.current || !p.playing) return;
-    const m = map.current,
-      extent = m.getView().calculateExtent(m.getSize()),
-      projection = m.getView().getProjection(),
-      resolution = m.getView().getResolution()!;
-    let cancelled = false;
-    let keys: any[] = [];
-    for (const t of p.nextTimes.slice(0, 3)) {
-      const src = imagery(t, p.mode, true),
-        grid = src.getTileGridForProjection(projection),
-        z = grid.getZForResolution(resolution),
-        range = grid.getTileRangeForExtentAndZ(extent, z);
-      let count = 0;
-      for (let x = range.minX; x <= range.maxX; x++)
-        for (let y = range.minY; y <= range.maxY; y++) {
-          if (count++ > 80) break;
-          const tile = src.getTile(z, x, y, 1, projection);
-          if (tile.getState() === 0) tile.load();
-        }
-    }
-    return () => {
-      cancelled = true;
-      keys.forEach(unByKey);
-    };
-  }, [p.nextTimes.join(","), p.mode, p.playing]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
   useEffect(()=>{if(!p.thermal)probeSelection.current?.clear()},[p.thermal]);
   useEffect(() => {
