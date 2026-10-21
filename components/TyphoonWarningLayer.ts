@@ -9,8 +9,8 @@ export function useTyphoonWarningLayer(mapRef:any,data:any,layers:any,error:bool
  const seaStyle=new Style({stroke:new Stroke({color:'#168cff',width:3,lineCap:'round',lineJoin:'round'})});
  const countyStyle=new Style({stroke:new Stroke({color:'rgba(222,235,241,.92)',width:1.15,lineCap:'round',lineJoin:'round'})});
  const impactStyle=new Style({fill:new Fill({color:'rgba(222,44,58,.4)'})});
- const officialStyle=new Style({fill:new Fill({color:'rgba(255,128,89,.18)'})});
- const overlapStyle=new Style({stroke:new Stroke({color:'rgba(255,109,119,.45)',width:.7}),fill:new Fill({color:'rgba(255,85,100,.28)'})});
+ const officialStyle=new Style({stroke:new Stroke({color:'#ff354f',width:3.5,lineCap:'round',lineJoin:'round'}),fill:new Fill({color:'rgba(255,59,79,.20)'})});
+ const overlapStyle=new Style({stroke:new Stroke({color:'rgba(255,109,119,.8)',width:1.4,lineCap:'round',lineJoin:'round'}),fill:new Fill({color:'rgba(255,85,100,.32)'})});
  // Draw interior borders only; the base coastline layer already draws the shore.
  Promise.all([fetch('/data/taiwan-counties.json').then(r=>r.json()),fetch('/data/taiwan-county-borders.json').then(r=>r.json())]).then(([d,borders]:any[])=>{if(!alive)return;if(data&&!error){const names=new Set<string>(layers.impact?(data.impacts?.items||[]).map((v:any)=>v.name):[]);if(names.size)add({...d,features:d.features.filter((f:any)=>names.has(f.properties.name))},impactStyle,'impact');if(layers.official&&data.warning?.active)add({...d,features:d.features.filter((f:any)=>data.warning.officialCounties.includes(f.properties.name))},officialStyle,'official');}add(borders,countyStyle)}).catch(()=>{});
  if(layers.nearshore)fetch('/data/taiwan-sea-line.json').then(r=>r.json()).then((d:any)=>{if(alive)add(d,seaStyle,'reference')}).catch(()=>{});

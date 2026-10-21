@@ -515,27 +515,34 @@ export default function WeatherMap(p: {
       if(p.showCurrent===false){s.removeFeature(marker)}
       if (p.wind) {
         const gale = analysis.galeWarningArea;
-        if (p.agency === "cwa" && gale?.center && gale.radius > 0)
+        if (p.agency === "jma" && gale?.center && gale.radius > 0)
           add(
             circular(
               [gale.center[1], gale.center[0]],
               gale.radius,
               120,
             ).transform("EPSG:4326", "EPSG:3857"),
-            "#2c8bd8",
-            1.4,
-            undefined,
+            "#ff354f",
+            3.5,
           );
-        for (const a of analysis.stormWarningArea?.arc || [])
-          add(
-            circular([a[0][1], a[0][0]], a[1], 100).transform(
-              "EPSG:4326",
-              "EPSG:3857",
-            ),
-            "#ff626f",
-            1.6,
-            "rgba(255,67,83,.24)",
-          );
+        if (p.agency === "cwa") {
+          if (gale?.center && gale.radius > 0)
+            add(
+              circular([gale.center[1], gale.center[0]], gale.radius, 120).transform("EPSG:4326", "EPSG:3857"),
+              "#2c8bd8",
+              1.4,
+            );
+          for (const a of analysis.stormWarningArea?.arc || [])
+            add(
+              circular([a[0][1], a[0][0]], a[1], 100).transform(
+                "EPSG:4326",
+                "EPSG:3857",
+              ),
+              "#ff626f",
+              1.6,
+              "rgba(255,67,83,.24)",
+            );
+        }
       }
       if (p.forecast) {
         const forecasts = data.filter(
@@ -547,6 +554,17 @@ export default function WeatherMap(p: {
           1.8,
           undefined,
         );
+        if (p.agency === "jma") {
+          const uncertainty = forecasts.filter((d: any) => d.centerUncertainty?.radiusMeters > 0);
+          for (let i = 1; i < uncertainty.length; i++) {
+            const a = uncertainty[i - 1], b = uncertainty[i];
+            const ca = fromLonLat([a.center[1], a.center[0]]), cb = fromLonLat([b.center[1], b.center[0]]);
+            const dx = cb[0] - ca[0], dy = cb[1] - ca[1], length = Math.hypot(dx, dy);
+            if (!length) continue;
+            const nx = -dy / length, ny = dx / length, ra = a.centerUncertainty.radiusMeters, rb = b.centerUncertainty.radiusMeters;
+            add(new Polygon([[[ca[0] + nx * ra, ca[1] + ny * ra], [cb[0] + nx * rb, cb[1] + ny * rb], [cb[0] - nx * rb, cb[1] - ny * rb], [ca[0] - nx * ra, ca[1] - ny * ra], [ca[0] + nx * ra, ca[1] + ny * ra]]]), "#fff", 1.6, "rgba(255,255,255,.07)", [6,5]);
+          }
+        }
         for (const f of forecasts) {
           const dot = new Feature(new Point(point(f.center)));
           dot.set("info", {
