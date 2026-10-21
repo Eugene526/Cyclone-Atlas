@@ -23,7 +23,7 @@ import { register } from "ol/proj/proj4";
 import proj4 from "proj4";
 import { Style, Stroke, Fill, Circle as CircleStyle, Text } from "ol/style";
 import Feature from "ol/Feature";
-import { Point, LineString, Polygon } from "ol/geom";
+import { Point, LineString } from "ol/geom";
 import { circular } from "ol/geom/Polygon";
 import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
@@ -522,9 +522,35 @@ export default function WeatherMap(p: {
               gale.radius,
               120,
             ).transform("EPSG:4326", "EPSG:3857"),
-            "#ff354f",
-            3.5,
+            "#ffd34d",
+            2.5,
           );
+        if (p.agency === "jma") {
+          // Render JMA's official storm-warning boundary from its published arc and line segments.
+          // Do not substitute uncertainty circles for wind radii or fill the warning region.
+          const warning = [...data].reverse().find((d: any) => d.advancedHours >= 0 &&
+            (d.stormWarningArea?.arc?.length || d.stormWarningArea?.line?.length),
+          )?.stormWarningArea;
+          for (const arc of warning?.arc || []) {
+            const [[lat, lon], radius, [start, end]] = arc;
+            if (![lat, lon, radius, start, end].every(Number.isFinite) || radius <= 0) continue;
+            const steps = Math.max(1, Math.ceil(Math.abs(end - start) / 2));
+            const coordinates = Array.from({ length: steps + 1 }, (_, i) => {
+              const bearing = start + (end - start) * i / steps;
+              const angle = bearing * Math.PI / 180;
+              const angular = radius / 6371008.8;
+              const phi1 = lat * Math.PI / 180, lambda1 = lon * Math.PI / 180;
+              const phi2 = Math.asin(Math.sin(phi1) * Math.cos(angular) + Math.cos(phi1) * Math.sin(angular) * Math.cos(angle));
+              const lambda2 = lambda1 + Math.atan2(Math.sin(angle) * Math.sin(angular) * Math.cos(phi1), Math.cos(angular) - Math.sin(phi1) * Math.sin(phi2));
+              return fromLonLat([lambda2 * 180 / Math.PI, phi2 * 180 / Math.PI]);
+            });
+            add(new LineString(coordinates), "#ff4658", 2.5);
+          }
+          for (const segment of warning?.line || []) {
+            if (Array.isArray(segment) && segment.length >= 2)
+              add(new LineString(segment.map((v: number[]) => fromLonLat([v[1], v[0]]))), "#ff4658", 2.5);
+          }
+        }
         if (p.agency === "cwa") {
           if (gale?.center && gale.radius > 0)
             add(
@@ -550,19 +576,15 @@ export default function WeatherMap(p: {
         );
         add(
           new LineString(unwrapTrack(forecasts.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v))),
-          "#ff8c78",
+          p.agency === "jma" ? "#ffffff" : "#ff8c78",
           1.8,
           undefined,
         );
-        if (p.agency === "jma") {
-          const uncertainty = forecasts.filter((d: any) => d.centerUncertainty?.radiusMeters > 0);
-          for (let i = 1; i < uncertainty.length; i++) {
-            const a = uncertainty[i - 1], b = uncertainty[i];
-            const ca = fromLonLat([a.center[1], a.center[0]]), cb = fromLonLat([b.center[1], b.center[0]]);
-            const dx = cb[0] - ca[0], dy = cb[1] - ca[1], length = Math.hypot(dx, dy);
-            if (!length) continue;
-            const nx = -dy / length, ny = dx / length, ra = a.centerUncertainty.radiusMeters, rb = b.centerUncertainty.radiusMeters;
-            add(new Polygon([[[ca[0] + nx * ra, ca[1] + ny * ra], [cb[0] + nx * rb, cb[1] + ny * rb], [cb[0] - nx * rb, cb[1] - ny * rb], [ca[0] - nx * ra, ca[1] - ny * ra], [ca[0] + nx * ra, ca[1] + ny * ra]]]), "#fff", 1.6, "rgba(255,255,255,.07)", [6,5]);
+        if (p.agency === "jma") for (const f of forecasts) {
+          // These are JMA's native tangents connecting the probability-circle boundaries.
+          for (const tangent of f.centerUncertainty?.tangent || []) {
+            if (Array.isArray(tangent) && tangent.length >= 2)
+              add(new LineString(tangent.map((v: number[]) => fromLonLat([v[1], v[0]]))), "rgba(255,255,255,.9)", 1.8);
           }
         }
         for (const f of forecasts) {
