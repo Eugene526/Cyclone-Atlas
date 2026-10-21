@@ -170,7 +170,9 @@ a {
 .weather-map {
   position: absolute;
   inset: 0;
+  background-color: #17313f;
 }
+.weather-map.path-prediction-map { background-color: #17313f; }
 .history-section details > summary { cursor: pointer; list-style: none; }
 .history-section details > summary::-webkit-details-marker { display: none; }
 .history-section details > summary::after { content: "+"; margin-left: auto; color: #92aab5; }

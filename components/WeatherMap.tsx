@@ -96,7 +96,7 @@ export default function WeatherMap(p: {
       }),
     });
     coastLayer.current=coasts;
-    const land=new VectorLayer({source:new VectorSource({url:"/data/land.json",format:new GeoJSON()}),style:new Style({fill:new Fill({color:"#172b38"})})});
+    const land=new VectorLayer({source:new VectorSource({url:"/data/land.json",format:new GeoJSON()}),style:new Style({fill:new Fill({color:"#263e49"}),stroke:new Stroke({color:"rgba(181,208,216,.58)",width:.8})})});
     landLayer.current=land;
     vectors.current = new VectorSource();
     selection.current = new VectorSource();
@@ -355,7 +355,7 @@ export default function WeatherMap(p: {
     if(!map.current||!p.advisoryItems?.length)return;
     const byCounty=new globalThis.Map<string,any[]>();
     for(const item of p.advisoryItems){const name=String(item.area||'').replaceAll('台','臺');byCounty.set(name,[...(byCounty.get(name)||[]),item])}
-    let active=true;const source=new VectorSource();const layer=new VectorLayer({source,zIndex:19});layer.setVisible(!cb.current.pathPrediction);map.current.addLayer(layer);
+    let active=true;const source=new VectorSource();const layer=new VectorLayer({source,zIndex:19});map.current.addLayer(layer);
     fetch('/data/taiwan-counties.json').then(r=>r.json()).then(data=>{
       if(!active)return;
       for(const feature of new GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'})){
@@ -369,7 +369,7 @@ export default function WeatherMap(p: {
       }
     }).catch(()=>{});
     return()=>{active=false;map.current?.removeLayer(layer)};
-  },[p.advisoryItems,p.pathPrediction]);
+  },[p.advisoryItems]);
   useEffect(() => {
     if (!map.current || !p.time) return;
     const m = map.current;
@@ -428,7 +428,7 @@ export default function WeatherMap(p: {
     };
   }, [p.time, p.mode, p.playing]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
-  useEffect(()=>{sat.current?.setVisible(!p.pathPrediction);coastLayer.current?.setVisible(p.showCoastline!==false);landLayer.current?.setVisible(!p.pathPrediction)},[p.pathPrediction,p.showCoastline]);
+  useEffect(()=>{sat.current?.setVisible(!p.pathPrediction);coastLayer.current?.setVisible(p.showCoastline!==false);landLayer.current?.setVisible(true);el.current?.classList.toggle("path-prediction-map",!!p.pathPrediction)},[p.pathPrediction,p.showCoastline]);
   useEffect(()=>{if(!p.thermal)probeSelection.current?.clear()},[p.thermal]);
   useEffect(() => {
     const s = vectors.current;
@@ -487,7 +487,7 @@ export default function WeatherMap(p: {
       const history=data.filter((d:any)=>d.center&&d.advancedHours<0);
       if(p.cwaHistory&&history.length>1)add(new LineString(unwrapTrack(history.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v))),"#63c5f2",1.8);
       if(p.showCurrent===false){s.removeFeature(marker)}
-      if (p.wind || p.pathPrediction) {
+      if (p.wind) {
         const gale = analysis.galeWarningArea;
         if (gale)
           add(
@@ -496,9 +496,9 @@ export default function WeatherMap(p: {
               gale.radius,
               120,
             ).transform("EPSG:4326", "EPSG:3857"),
-            "#ff727b",
+            "#ffdc55",
             1.4,
-            "rgba(255,91,105,.12)",
+            "rgba(255,217,72,.20)",
           );
         for (const a of analysis.stormWarningArea?.arc || [])
           add(
@@ -506,9 +506,9 @@ export default function WeatherMap(p: {
               "EPSG:4326",
               "EPSG:3857",
             ),
-            "#ff9a78",
+            "#ff626f",
             1.6,
-            "rgba(255,91,105,.24)",
+            "rgba(255,67,83,.24)",
           );
       }
       if (p.forecast) {
@@ -542,11 +542,18 @@ export default function WeatherMap(p: {
             }),
           );
           s.addFeature(dot);
+          if (f.probabilityCircle) add(circular([f.center[1],f.center[0]],f.probabilityCircle.radius,100).transform("EPSG:4326","EPSG:3857"),"#d7e7f5",1.8,"rgba(178,205,230,.10)");
+          if(p.wind){
+            const fg=f.galeWarningArea;
+            if(fg)add(circular([fg.center[1],fg.center[0]],fg.radius,120).transform("EPSG:4326","EPSG:3857"),"#ffdc55",1.4,"rgba(255,217,72,.20)");
+            for(const a of f.stormWarningArea?.arc||[])add(circular([a[0][1],a[0][0]],a[1],100).transform("EPSG:4326","EPSG:3857"),"#ff626f",1.6,"rgba(255,67,83,.24)");
+            for(const line of f.stormWarningArea?.line||[])add(new LineString(line.map(point)),"#ff626f",1.5);
+          }
         }
         const last = forecasts.at(-1);
-        if(!p.pathPrediction)for (const line of last?.stormWarningArea?.line || [])
+        for (const line of last?.stormWarningArea?.line || [])
           add(new LineString(line.map(point)), "#ff795f", 1.5);
-        if(!p.pathPrediction)for (const arc of last?.stormWarningArea?.arc || []) {
+        for (const arc of last?.stormWarningArea?.arc || []) {
           const coords = [];
           for (let angle = arc[2][0]; angle <= arc[2][1]; angle += 2) {
             const rad = (angle * Math.PI) / 180,
@@ -571,7 +578,7 @@ export default function WeatherMap(p: {
         }
       }
     }
-    for (const model of (p.pathPrediction?[]:p.models))
+    for (const model of p.models)
       for (const track of model.tracks || []) {
         if (track.points?.length > 1) {
           const line = add(
@@ -593,7 +600,7 @@ export default function WeatherMap(p: {
           });
         }
       }
-  }, [p.storms, p.wind, p.forecast, p.models,p.pathPrediction,p.cwaHistory,p.showCurrent]);
+  }, [p.storms, p.wind, p.forecast, p.models,p.cwaHistory,p.showCurrent]);
   useEffect(() => {
     const selected = selectedTrack.current;
     if (selected?.modelId && !p.models.some((model) => model.id === selected.modelId)) {
@@ -602,8 +609,8 @@ export default function WeatherMap(p: {
       cb.current.onPoint(null);
     }
   }, [p.models]);
-  useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind||p.pathPrediction===true,p.forecast,p.cwaHistory,p.showCurrent!==false,p.pathPrediction===true);
-  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError,p.wind,p.pathPrediction);
+  useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind,p.forecast,p.cwaHistory,p.showCurrent!==false);
+  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError,p.wind);
   return (
     <div
       ref={el}
