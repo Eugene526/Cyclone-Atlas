@@ -43,7 +43,7 @@ const regions = [
 ];
 export default function Observatory() {
   const {data:cwa,error:cwaError}=useTyphoonWarnings();
-  const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
+  const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[showCurrent,setShowCurrent]=useState(true),[showCoastline,setShowCoastline]=useState(true),[pathPrediction,setPathPrediction]=useState(false),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
   function changeAgency(v:string){setAgency(v);setPointInfo(null)}
   const [radars,setRadars]=useState<string[]>([]),[radarReady,setRadarReady]=useState(true),[radarStatus,setRadarStatus]=useState("");
   const [thermal,setThermal]=useState<any>(null);
@@ -281,7 +281,7 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
-          cwa={cwa} agency={agency} cwaHistory={cwaHistory} warningLayers={warningLayers} cwaError={cwaError}
+          cwa={cwa} agency={agency} cwaHistory={cwaHistory} showCurrent={showCurrent} pathPrediction={pathPrediction} showCoastline={showCoastline} warningLayers={warningLayers} cwaError={cwaError}
           radars={radars} onRadarReady={setRadarReady} onRadarStatus={setRadarStatus}
           time={time}
           mode={effective}
@@ -306,7 +306,7 @@ export default function Observatory() {
           <div className="eyebrow">
             <span /> EARTH OBSERVATION
           </div>
-          <h1>{withinSatellite ? "西太平洋・全域觀測" : "全球地圖・自由瀏覽"}</h1>
+          <h1>{pathPrediction?"颱風路徑預測":withinSatellite ? "西太平洋・全域觀測" : "全球地圖・自由瀏覽"}</h1>
           <p>
             {time ? `衛星觀測 ${new Date(new Date(time).getTime() + 8 * 3600000).getUTCFullYear()}/${tw(time)} · UTC+8（臺灣）` : "取得最新觀測中"} <span>｜</span>{" "}
             {effective === "ott"
@@ -371,9 +371,9 @@ export default function Observatory() {
             <Crosshair size={19} />
           </button>
           <button
-            title="下載雲圖"
+            title={pathPrediction?"下載預報圖":"下載雲圖"}
             onClick={() => {
-              setStatus("準備下載雲圖，等待圖磚完成…");
+              setStatus(pathPrediction?"準備下載目前視野的颱風預報圖…":"準備下載雲圖，等待圖磚完成…");
               api.current?.export();
             }}
           >
@@ -554,6 +554,12 @@ export default function Observatory() {
               )}
               </>}
               {structureStorms.length>0&&<StructuralAnalysis storms={structureStorms}/>}
+              <div className="path-view-controls">
+                <button type="button" className={pathPrediction?"active":""} onClick={()=>setPathPrediction(v=>!v)}>{pathPrediction?"返回衛星底圖":"路徑預測"}</button>
+                <label><input type="checkbox" checked={showCurrent} onChange={e=>setShowCurrent(e.target.checked)}/>目前位置</label>
+                <label><input type="checkbox" checked={cwaHistory} onChange={e=>setCwaHistory(e.target.checked)}/>歷史路徑</label>
+                <label><input type="checkbox" checked={showCoastline} onChange={e=>setShowCoastline(e.target.checked)}/>海岸線</label>
+              </div>
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />

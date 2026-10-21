@@ -56,6 +56,7 @@ addCoordinateTransforms(
 
 type RadarProps = {
   time: string;
+  pathPrediction?: boolean;
   playing: boolean;
   nextTimes: string[];
   radars: string[];
@@ -93,6 +94,7 @@ export function useRadar(map: React.RefObject<Map | null>, p: RadarProps) {
   const frames = useRef(
     new globalThis.Map<string, { provider: string; job: Promise<Prepared> }>(),
   );
+  useEffect(()=>{for(const frame of layers.current)frame.layer.setVisible(!p.pathPrediction);},[p.pathPrediction]);
   const tiles = useRef(
     new globalThis.Map<string, Promise<HTMLImageElement | null>>(),
   );

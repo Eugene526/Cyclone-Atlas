@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import {densifyTrack} from '../lib/track-geometry.mjs';
+import {densifyTrack,unwrapTrack} from '../lib/track-geometry.mjs';
+
+const officialFixes=[{lon:121.2,lat:18.4},{lon:124.7,lat:20.1},{lon:128.3,lat:24.8}];
+assert.deepEqual(unwrapTrack(officialFixes),officialFixes.map(p=>[p.lon,p.lat]),'forecast route geometry must retain only the published API fixes');
+const officialDateLine=[{lon:179,lat:15},{lon:-179,lat:16}];
+const officialContinuous=unwrapTrack(officialDateLine);
+assert(Math.abs(officialContinuous[1][0]-officialContinuous[0][0])<=2,'API fixes across the date line remain continuous without synthetic points');
 
 const haversine=(a,b)=>{const r=Math.PI/180,lat1=a[1]*r,lat2=b[1]*r,dlat=(b[1]-a[1])*r,dlon=(b[0]-a[0])*r,h=Math.sin(dlat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;return 12742.0176*Math.asin(Math.sqrt(h));};
 const path=densifyTrack([{lon:120,lat:10},{lon:145,lat:35},{lon:160,lat:42}],100);

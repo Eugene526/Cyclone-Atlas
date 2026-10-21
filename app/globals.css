@@ -1260,3 +1260,10 @@ input[type="range"] {
 .brand-logo-link{width:205px;flex:0 0 auto;display:block;line-height:0;padding:3px 8px;border-radius:9px;background:linear-gradient(135deg,#f4fbff,#d9edf5);box-shadow:0 0 0 1px #b6e3e455,0 2px 10px #0003}
 .brand-logo{display:block;width:100%;height:auto;max-height:70px;object-fit:contain;border-radius:4px;background:transparent}
 @media(max-width:720px){.brand-logo-link{width:142px}.brand-logo{max-height:48px}}
+
+.path-view-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0;padding:10px;border:1px solid rgba(143,180,202,.2);border-radius:12px;background:rgba(5,16,27,.55)}
+.path-view-controls>button{grid-column:1/-1;min-height:34px;border:1px solid rgba(131,205,198,.35);border-radius:8px;background:rgba(122,220,202,.12);color:#c8f5ed;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.path-view-controls>button.active{background:#8be6d0;color:#102a32}
+.path-view-controls label{display:flex;align-items:center;gap:6px;color:#bdcbd4;font-size:11px;white-space:nowrap}
+.path-view-controls input{accent-color:#83ddc8}
+@media(max-width:700px){.path-view-controls{grid-template-columns:repeat(3,minmax(0,1fr));padding:8px 6px;gap:5px}.path-view-controls>button{grid-column:1/-1}.path-view-controls label{font-size:10px;white-space:normal}}

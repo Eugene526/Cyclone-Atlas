@@ -29,7 +29,7 @@ import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
 import {cloudTemperature} from "@/lib/cloud-probe";
 import { imagery } from "@/lib/imagery";
-import { densifyTrack, unwrapTrack } from "@/lib/track-geometry.mjs";
+import { unwrapTrack } from "@/lib/track-geometry.mjs";
 import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 proj4.defs(
@@ -47,8 +47,10 @@ export type MapAPI = {
   preload: (times: string[], modeForTime: (time: string) => string, progress: (done: number, total: number) => void) => Promise<{ cancelled: boolean; failed: number; total: number }>;
   cancelPreload: () => void;
 };
+function exportStormLabel(p:any){const c=p.cwa?.storms?.[0];if(p.agency==="cwa"&&c)return `${c.number||c.id} · ${c.name}`;const j=p.storms?.[0],t=j?.data?.[0];return `${t?.typhoonNumber||j?.id||"颱風"} · ${t?.name?.en||""}`;}
 export default function WeatherMap(p: {
   cwa:any; agency:string; warningLayers:any; cwaError:boolean; cwaHistory:boolean;
+  showCurrent?:boolean; pathPrediction?:boolean; showCoastline?:boolean;
   advisoryItems?: any[];
   radars: string[];
   onRadarReady:(ready:boolean)=>void;
@@ -75,6 +77,7 @@ export default function WeatherMap(p: {
     map = useRef<Map | null>(null),
     preloadToken = useRef(0),
     sat = useRef<any>(null),
+    landLayer = useRef<any>(null), coastLayer = useRef<any>(null),
     vectors = useRef<VectorSource | null>(null),
     selection = useRef<VectorSource | null>(null),
     probeSelection = useRef<VectorSource | null>(null),
@@ -92,19 +95,16 @@ export default function WeatherMap(p: {
         stroke: new Stroke({ color: "rgba(255,255,255,.8)", width: 1 }),
       }),
     });
+    coastLayer.current=coasts;
+    const land=new VectorLayer({source:new VectorSource({url:"/data/land.json",format:new GeoJSON()}),style:new Style({fill:new Fill({color:"#172b38"})})});
+    landLayer.current=land;
     vectors.current = new VectorSource();
     selection.current = new VectorSource();
     probeSelection.current = new VectorSource();
     const m = new Map({
       target: el.current!,
       layers: [
-        new VectorLayer({
-          source: new VectorSource({
-            url: "/data/land.json",
-            format: new GeoJSON(),
-          }),
-          style: new Style({ fill: new Fill({ color: "#172b38" }) }),
-        }),
+        land,
         coasts,
         new VectorLayer({ source: vectors.current, zIndex:20 }),
         new VectorLayer({ source: selection.current, zIndex:21 }),
@@ -325,12 +325,12 @@ export default function WeatherMap(p: {
             ctx.fillStyle = "white";
             ctx.font = "28px sans-serif";
             ctx.fillText(
-              `CYCLONE ATLAS · HIMAWARI · ${cb.current.time} · ${cb.current.mode.toUpperCase()} · JMA / NICT`,
+              cb.current.pathPrediction ? `颱風預報 · ${exportStormLabel(cb.current)} · 預報圖日期 ${new Date(cb.current.time).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"})} UTC+8` : `CYCLONE ATLAS · HIMAWARI · ${cb.current.time} · ${cb.current.mode.toUpperCase()} · JMA / NICT`,
               325,
               2126,
             );
             const a = document.createElement("a");
-            a.download = "cyclone-atlas.png";
+            a.download = cb.current.pathPrediction ? "cyclone-atlas-forecast.png" : "cyclone-atlas.png";
             a.href = c.toDataURL("image/png");
             a.click();
           } catch {
@@ -355,7 +355,7 @@ export default function WeatherMap(p: {
     if(!map.current||!p.advisoryItems?.length)return;
     const byCounty=new globalThis.Map<string,any[]>();
     for(const item of p.advisoryItems){const name=String(item.area||'').replaceAll('台','臺');byCounty.set(name,[...(byCounty.get(name)||[]),item])}
-    let active=true;const source=new VectorSource();const layer=new VectorLayer({source,zIndex:19});map.current.addLayer(layer);
+    let active=true;const source=new VectorSource();const layer=new VectorLayer({source,zIndex:19});layer.setVisible(!cb.current.pathPrediction);map.current.addLayer(layer);
     fetch('/data/taiwan-counties.json').then(r=>r.json()).then(data=>{
       if(!active)return;
       for(const feature of new GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'})){
@@ -369,7 +369,7 @@ export default function WeatherMap(p: {
       }
     }).catch(()=>{});
     return()=>{active=false;map.current?.removeLayer(layer)};
-  },[p.advisoryItems]);
+  },[p.advisoryItems,p.pathPrediction]);
   useEffect(() => {
     if (!map.current || !p.time) return;
     const m = map.current;
@@ -381,7 +381,7 @@ export default function WeatherMap(p: {
     cb.current.onStatus(
       p.playing ? "準備動畫影格…" : "漸進載入：先概覽，再補細節…",
     );
-    const layer = new TileLayer({ source, opacity: 0.001, preload: 0 });
+    const layer = new TileLayer({ source, opacity: 0.001, preload: 0, visible: !cb.current.pathPrediction });
     sat.current = layer;
     m.getLayers().insertAt(1, layer);
     let preview: TileLayer<XYZ> | null = null;
@@ -389,6 +389,7 @@ export default function WeatherMap(p: {
       preview = new TileLayer({
         source: imagery(p.time, p.mode, false, true),
         opacity: p.opacity,
+        visible: !cb.current.pathPrediction,
       });
       m.getLayers().insertAt(1, preview);
     }
@@ -427,6 +428,7 @@ export default function WeatherMap(p: {
     };
   }, [p.time, p.mode, p.playing]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
+  useEffect(()=>{sat.current?.setVisible(!p.pathPrediction);coastLayer.current?.setVisible(p.showCoastline!==false);landLayer.current?.setVisible(!p.pathPrediction)},[p.pathPrediction,p.showCoastline]);
   useEffect(()=>{if(!p.thermal)probeSelection.current?.clear()},[p.thermal]);
   useEffect(() => {
     const s = vectors.current;
@@ -482,7 +484,10 @@ export default function WeatherMap(p: {
         issue: title?.issue?.UTC,
       });
       s.addFeature(marker);
-      if (p.wind) {
+      const history=data.filter((d:any)=>d.center&&d.advancedHours<0);
+      if(p.cwaHistory&&history.length>1)add(new LineString(unwrapTrack(history.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v))),"#63c5f2",1.8);
+      if(p.showCurrent===false){s.removeFeature(marker)}
+      if (p.wind || p.pathPrediction) {
         const gale = analysis.galeWarningArea;
         if (gale)
           add(
@@ -491,9 +496,9 @@ export default function WeatherMap(p: {
               gale.radius,
               120,
             ).transform("EPSG:4326", "EPSG:3857"),
-            "#f9c962",
+            "#ff727b",
             1.4,
-            "#f9c96213",
+            "rgba(255,91,105,.12)",
           );
         for (const a of analysis.stormWarningArea?.arc || [])
           add(
@@ -501,9 +506,9 @@ export default function WeatherMap(p: {
               "EPSG:4326",
               "EPSG:3857",
             ),
-            "#ff795f",
+            "#ff9a78",
             1.6,
-            "#ff795f1c",
+            "rgba(255,91,105,.24)",
           );
       }
       if (p.forecast) {
@@ -511,11 +516,10 @@ export default function WeatherMap(p: {
           (d: any) => d.center && d.advancedHours >= 0,
         );
         add(
-          new LineString(densifyTrack(forecasts.map((d: any) => ({lon:d.center[1],lat:d.center[0]}))).map(([lon,lat]:number[])=>fromLonLat([lon,lat]))),
-          "#fff",
+          new LineString(unwrapTrack(forecasts.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v))),
+          "#ff8c78",
           1.8,
           undefined,
-          [6, 5],
         );
         for (const f of forecasts) {
           const dot = new Feature(new Point(point(f.center)));
@@ -538,23 +542,11 @@ export default function WeatherMap(p: {
             }),
           );
           s.addFeature(dot);
-          if (f.probabilityCircle)
-            add(
-              circular(
-                [f.center[1], f.center[0]],
-                f.probabilityCircle.radius,
-                80,
-              ).transform("EPSG:4326", "EPSG:3857"),
-              "#ffffffa0",
-              1,
-              undefined,
-              [4, 5],
-            );
         }
         const last = forecasts.at(-1);
-        for (const line of last?.stormWarningArea?.line || [])
+        if(!p.pathPrediction)for (const line of last?.stormWarningArea?.line || [])
           add(new LineString(line.map(point)), "#ff795f", 1.5);
-        for (const arc of last?.stormWarningArea?.arc || []) {
+        if(!p.pathPrediction)for (const arc of last?.stormWarningArea?.arc || []) {
           const coords = [];
           for (let angle = arc[2][0]; angle <= arc[2][1]; angle += 2) {
             const rad = (angle * Math.PI) / 180,
@@ -579,7 +571,7 @@ export default function WeatherMap(p: {
         }
       }
     }
-    for (const model of p.models)
+    for (const model of (p.pathPrediction?[]:p.models))
       for (const track of model.tracks || []) {
         if (track.points?.length > 1) {
           const line = add(
@@ -601,7 +593,7 @@ export default function WeatherMap(p: {
           });
         }
       }
-  }, [p.storms, p.wind, p.forecast, p.models]);
+  }, [p.storms, p.wind, p.forecast, p.models,p.pathPrediction,p.cwaHistory,p.showCurrent]);
   useEffect(() => {
     const selected = selectedTrack.current;
     if (selected?.modelId && !p.models.some((model) => model.id === selected.modelId)) {
@@ -610,13 +602,13 @@ export default function WeatherMap(p: {
       cb.current.onPoint(null);
     }
   }, [p.models]);
-  useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind,p.forecast,p.cwaHistory);
-  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError,p.wind);
+  useCwaTracks(map,p.cwa,p.agency==="cwa"&&!p.cwaError,p.wind||p.pathPrediction===true,p.forecast,p.cwaHistory,p.showCurrent!==false,p.pathPrediction===true);
+  useTyphoonWarningLayer(map,p.cwa,p.warningLayers,p.cwaError,p.wind,p.pathPrediction);
   return (
     <div
       ref={el}
       className="weather-map"
-      aria-label="可拖曳縮放的衛星觀測地圖"
+      aria-label={p.pathPrediction?"可拖曳縮放的颱風路徑預測圖":"可拖曳縮放的衛星觀測地圖"}
     />
   );
 }
