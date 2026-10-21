@@ -29,7 +29,7 @@ import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
 import {cloudTemperature} from "@/lib/cloud-probe";
 import { imagery } from "@/lib/imagery";
-import { unwrapTrack } from "@/lib/track-geometry.mjs";
+import { densifyTrack, unwrapTrack } from "@/lib/track-geometry.mjs";
 import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 proj4.defs(
@@ -511,7 +511,7 @@ export default function WeatherMap(p: {
           (d: any) => d.center && d.advancedHours >= 0,
         );
         add(
-          new LineString(forecasts.map((d: any) => point(d.center))),
+          new LineString(densifyTrack(forecasts.map((d: any) => ({lon:d.center[1],lat:d.center[0]}))).map(([lon,lat]:number[])=>fromLonLat([lon,lat]))),
           "#fff",
           1.8,
           undefined,

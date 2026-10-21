@@ -1,4 +1,5 @@
 import {useEffect} from 'react';
+import {densifyTrack} from '@/lib/track-geometry.mjs';
 import VectorLayer from 'ol/layer/Vector';import VectorSource from 'ol/source/Vector';import Feature from 'ol/Feature';import {Point,LineString,Polygon} from 'ol/geom';import {fromLonLat} from 'ol/proj';import GeoJSON from 'ol/format/GeoJSON';import {Style,Stroke,Fill,Circle,Text} from 'ol/style';import {windRing} from '@/lib/cwa-typhoon.mjs';
 export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,forecast:boolean,history:boolean){
  useEffect(()=>{const map=mapRef.current;if(!map||!enabled||!data)return;const source=new VectorSource(),layer=new VectorLayer({source,zIndex:15});map.addLayer(layer);
@@ -6,7 +7,7 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  for(const s of data.storms||[]){
  const point=(p:any)=>fromLonLat([p.lon,p.lat]);
  if(history&&s.history.length>1)add(new LineString(s.history.map(point)),'#e9c775',undefined,[3,4]);
- if(forecast)add(new LineString([s.current,...s.forecast].map(point)),'#fff',undefined,[6,4]);
+ if(forecast)add(new LineString(densifyTrack([s.current,...s.forecast]).map(([lon,lat]:number[])=>fromLonLat([lon,lat]))),'#fff',undefined,[6,4]);
  if(forecast){const envelope=data.probabilityEnvelopes?.find((v:any)=>v.properties?.stormId===s.id);if(envelope){const fs=new GeoJSON().readFeatures({type:'FeatureCollection',features:[envelope]},{featureProjection:'EPSG:3857'});for(const f of fs){f.setStyle(new Style({stroke:new Stroke({color:'#dbe8f4',width:1.8,lineDash:[5,4]}),fill:new Fill({color:'rgba(219,232,244,.07)'})}));source.addFeature(f)}}}
  const points=[s.current,...(forecast?s.forecast:[])];
  for(const p of points){const current=p===s.current;
