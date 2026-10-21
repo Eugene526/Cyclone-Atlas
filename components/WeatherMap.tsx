@@ -282,6 +282,9 @@ export default function WeatherMap(p: {
             c.width = 3840;
             c.height = 2160;
             const ctx = c.getContext("2d")!;
+            // Layer canvases are transparent; match the live sea/base color in exports.
+            ctx.fillStyle = "#17313f";
+            ctx.fillRect(0, 0, c.width, c.height);
             m.getViewport()
               .querySelectorAll<HTMLCanvasElement>(".ol-layer canvas")
               .forEach((ca) => {
@@ -452,6 +455,17 @@ export default function WeatherMap(p: {
       return f;
     };
     const point = (a: number[]) => fromLonLat([a[1], a[0]]);
+    const callout = (coordinate:number[], text:string, index:number) => {
+      const currentMap=map.current;if(!currentMap)return;
+      const origin=point(coordinate),pixel=currentMap.getPixelFromCoordinate(origin);
+      if(!pixel)return;
+      const side=index%2===0?1:-1, anchor=currentMap.getCoordinateFromPixel([pixel[0]+side*112,pixel[1]+(index%3===0?-34:34)]);
+      if(!anchor)return;
+      add(new LineString([origin,anchor]),"rgba(235,246,250,.9)",1);
+      const label=new Feature(new Point(anchor));
+      label.setStyle(new Style({text:new Text({text,font:"600 11px sans-serif",textAlign:side>0?"left":"right",offsetX:side*5,fill:new Fill({color:"#f4fbff"}),stroke:new Stroke({color:"#10202a",width:3}),backgroundFill:new Fill({color:"rgba(9,25,36,.92)"}),backgroundStroke:new Stroke({color:"rgba(210,233,240,.72)",width:1}),padding:[4,6,4,6]})}));
+      s.addFeature(label);
+    };
     for (const storm of p.storms) {
       const data = storm.data || [],
         title = data[0],
@@ -542,6 +556,11 @@ export default function WeatherMap(p: {
             }),
           );
           s.addFeature(dot);
+          const spec=storm.specifications?.find((v:any)=>v.advancedHours===f.advancedHours)||{};
+          const timeText=new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(f.validtime?.UTC||f.validtime?.JST));
+          const windText=Number(spec.maximumWind?.sustained?.["m/s"])>0?`${spec.maximumWind.sustained["m/s"]} m/s`:spec.category?.en||"強度未提供";
+          const pressureText=spec.pressure?` · ${spec.pressure} hPa`:"";
+          callout(f.center,`${timeText} UTC+8\n${windText}${pressureText}`,f.advancedHours||0);
           // JMA's probabilityCircle is center-position uncertainty, never a wind radius.
           // Draw it as a distinct white dashed outline, separate from warning/wind circles.
           if (f.probabilityCircle?.radius > 0) add(circular([f.center[1],f.center[0]],f.probabilityCircle.radius,100).transform("EPSG:4326","EPSG:3857"),"#fff",2,undefined,[6,5]);
