@@ -542,7 +542,9 @@ export default function WeatherMap(p: {
             }),
           );
           s.addFeature(dot);
-          if (f.probabilityCircle) add(circular([f.center[1],f.center[0]],f.probabilityCircle.radius,100).transform("EPSG:4326","EPSG:3857"),"#d7e7f5",1.8,"rgba(178,205,230,.10)");
+          // JMA's probabilityCircle is center-position uncertainty, never a wind radius.
+          // Draw it as a distinct white dashed outline, separate from warning/wind circles.
+          if (f.probabilityCircle?.radius > 0) add(circular([f.center[1],f.center[0]],f.probabilityCircle.radius,100).transform("EPSG:4326","EPSG:3857"),"#fff",2,undefined,[6,5]);
           if(p.wind){
             const fg=f.galeWarningArea;
             if(fg)add(circular([fg.center[1],fg.center[0]],fg.radius,120).transform("EPSG:4326","EPSG:3857"),"#ffdc55",1.4,"rgba(255,217,72,.20)");
