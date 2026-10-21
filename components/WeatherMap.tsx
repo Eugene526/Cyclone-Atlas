@@ -515,16 +515,16 @@ export default function WeatherMap(p: {
       if(p.showCurrent===false){s.removeFeature(marker)}
       if (p.wind) {
         const gale = analysis.galeWarningArea;
-        if (gale)
+        if (p.agency === "cwa" && gale?.center && gale.radius > 0)
           add(
             circular(
               [gale.center[1], gale.center[0]],
               gale.radius,
               120,
             ).transform("EPSG:4326", "EPSG:3857"),
-            "#ffdc55",
+            "#2c8bd8",
             1.4,
-            "rgba(255,217,72,.20)",
+            undefined,
           );
         for (const a of analysis.stormWarningArea?.arc || [])
           add(
@@ -569,10 +569,7 @@ export default function WeatherMap(p: {
           );
           s.addFeature(dot);
           const spec=storm.specifications?.find((v:any)=>v.advancedHours===f.advancedHours)||{};
-          const timeText=p.pathPrediction&&p.showForecastTimestamps?new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(f.validtime?.UTC||f.validtime?.JST)):"";
-          const windText=Number(spec.maximumWind?.sustained?.["m/s"])>0?`${spec.maximumWind.sustained["m/s"]} m/s`:spec.category?.en||"強度未提供";
-          const pressureText=spec.pressure?` · ${spec.pressure} hPa`:"";
-          callout(f.center,`${timeText?`${timeText} UTC+8\n`:""}${windText}${pressureText}`,f.advancedHours||0);
+          if(p.pathPrediction&&p.showForecastTimestamps){const timeText=new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(f.validtime?.UTC||f.validtime?.JST));callout(f.center,timeText,f.advancedHours||0);}
           // JMA future circles are position-uncertainty circles, not wind circles.
           if (f.centerUncertainty?.radiusMeters > 0) add(circular([f.center[1],f.center[0]],f.centerUncertainty.radiusMeters,100).transform("EPSG:4326","EPSG:3857"),"#fff",2,undefined,[6,5]);
         }

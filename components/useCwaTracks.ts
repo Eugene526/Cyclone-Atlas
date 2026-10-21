@@ -15,7 +15,7 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  // The 70% probability circles are replaced by one envelope above; both
  // current and forecast seven-/ten-level wind circles remain independent.
  if(wind){for(const [key,color,fill] of [['r15','#ffdc55','rgba(255,217,72,.20)'],['r25','#ff626f','rgba(255,67,83,.24)']]){const ring=windRing(p,key);if(ring)add(new Polygon([ring.map((v:number[])=>fromLonLat(v))]),color,fill)}}
- if(forecast&&!current){const stamp=showForecastTimestamp&&p.time?`${new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(p.time))} UTC+8`:null;const details=[stamp,p.windMs!=null?`${p.windMs} m/s`:null,p.pressure!=null?`${p.pressure} hPa`:null].filter(Boolean).join(' · ');callout([p.lon,p.lat],details,index)}
+ if(forecast&&!current&&showForecastTimestamp&&p.time){const stamp=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(p.time));callout([p.lon,p.lat],stamp,index)}
 
  if(!current||showCurrent){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:p,issue:s.issue});f.setStyle(new Style({image:new Circle({radius:current?6:4,fill:new Fill({color:current?'#ff9c7c':'#fff'}),stroke:new Stroke({color:'#10202f',width:2})}),text:current?new Text({text:s.name,offsetY:-20,font:'600 12px sans-serif',fill:new Fill({color:'#fff'}),stroke:new Stroke({color:'#0e1721',width:3})}):undefined}));source.addFeature(f)}
  }
