@@ -43,7 +43,7 @@ const regions = [
 ];
 export default function Observatory() {
   const {data:cwa,error:cwaError}=useTyphoonWarnings();
-  const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[showCurrent,setShowCurrent]=useState(true),[showCoastline,setShowCoastline]=useState(true),[pathPrediction,setPathPrediction]=useState(false),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
+  const [agency,setAgency]=useState("cwa"),[cwaHistory,setCwaHistory]=useState(true),[showCurrent,setShowCurrent]=useState(true),[showCoastline,setShowCoastline]=useState(true),[pathPrediction,setPathPrediction]=useState(false),[showForecastTimestamps,setShowForecastTimestamps]=useState(false),[warningLayers,setWarningLayers]=useState({nearshore:true,official:true,impact:true});
   function changeAgency(v:string){setAgency(v);setPointInfo(null)}
   const [radars,setRadars]=useState<string[]>([]),[radarReady,setRadarReady]=useState(true),[radarStatus,setRadarStatus]=useState("");
   const [thermal,setThermal]=useState<any>(null);
@@ -281,7 +281,7 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
-          cwa={cwa} agency={agency} cwaHistory={cwaHistory} showCurrent={showCurrent} pathPrediction={pathPrediction} showCoastline={showCoastline} warningLayers={warningLayers} cwaError={cwaError}
+          cwa={cwa} agency={agency} cwaHistory={cwaHistory} showCurrent={showCurrent} pathPrediction={pathPrediction} showForecastTimestamps={showForecastTimestamps} showCoastline={showCoastline} warningLayers={warningLayers} cwaError={cwaError}
           radars={radars} onRadarReady={setRadarReady} onRadarStatus={setRadarStatus}
           time={time}
           mode={effective}
@@ -559,6 +559,7 @@ export default function Observatory() {
                 <label><input type="checkbox" checked={showCurrent} onChange={e=>setShowCurrent(e.target.checked)}/>目前位置</label>
                 <label><input type="checkbox" checked={cwaHistory} onChange={e=>setCwaHistory(e.target.checked)}/>歷史路徑</label>
                 <label><input type="checkbox" checked={showCoastline} onChange={e=>setShowCoastline(e.target.checked)}/>海岸線</label>
+                {pathPrediction&&<label><input type="checkbox" checked={showForecastTimestamps} onChange={e=>setShowForecastTimestamps(e.target.checked)}/>預報時間戳</label>}
               </div>
               <label className="toggle-row">
                 <span>

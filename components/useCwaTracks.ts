@@ -1,7 +1,7 @@
 import {useEffect} from 'react';
 import {unwrapTrack} from '@/lib/track-geometry.mjs';
 import VectorLayer from 'ol/layer/Vector';import VectorSource from 'ol/source/Vector';import Feature from 'ol/Feature';import {Point,LineString,Polygon} from 'ol/geom';import {fromLonLat} from 'ol/proj';import GeoJSON from 'ol/format/GeoJSON';import {Style,Stroke,Fill,Circle,Text} from 'ol/style';import {windRing} from '@/lib/cwa-typhoon.mjs';
-export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,forecast:boolean,history:boolean,showCurrent=true){
+export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,forecast:boolean,history:boolean,showCurrent=true,showForecastTimestamp=false){
  useEffect(()=>{const map=mapRef.current;if(!map||!enabled||!data)return;const source=new VectorSource(),layer=new VectorLayer({source,zIndex:15});map.addLayer(layer);
  const add=(geometry:any,color:string,fill?:string,dash?:number[])=>{const f=new Feature(geometry);f.setStyle(new Style({stroke:new Stroke({color,width:1.5,lineDash:dash}),fill:fill?new Fill({color:fill}):undefined}));source.addFeature(f);return f};
  for(const s of data.storms||[]){
@@ -15,12 +15,12 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  // The 70% probability circles are replaced by one envelope above; both
  // current and forecast seven-/ten-level wind circles remain independent.
  if(wind){for(const [key,color,fill] of [['r15','#ffdc55','rgba(255,217,72,.20)'],['r25','#ff626f','rgba(255,67,83,.24)']]){const ring=windRing(p,key);if(ring)add(new Polygon([ring.map((v:number[])=>fromLonLat(v))]),color,fill)}}
- if(forecast&&!current){const stamp=p.time?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(p.time)):'預報時間未提供';const details=[`${stamp} UTC+8`,p.windMs!=null?`${p.windMs} m/s`:null,p.pressure!=null?`${p.pressure} hPa`:null].filter(Boolean).join(' · ');callout([p.lon,p.lat],details,index)}
+ if(forecast&&!current){const stamp=showForecastTimestamp&&p.time?`${new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(p.time))} UTC+8`:null;const details=[stamp,p.windMs!=null?`${p.windMs} m/s`:null,p.pressure!=null?`${p.pressure} hPa`:null].filter(Boolean).join(' · ');callout([p.lon,p.lat],details,index)}
 
  if(!current||showCurrent){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:p,issue:s.issue});f.setStyle(new Style({image:new Circle({radius:current?6:4,fill:new Fill({color:current?'#ff9c7c':'#fff'}),stroke:new Stroke({color:'#10202f',width:2})}),text:current?new Text({text:s.name,offsetY:-20,font:'600 12px sans-serif',fill:new Fill({color:'#fff'}),stroke:new Stroke({color:'#0e1721',width:3})}):undefined}));source.addFeature(f)}
  }
  if(history)for(const p of s.history.slice(0,-1)){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:{...p,history:true},issue:s.issue});f.setStyle(new Style({image:new Circle({radius:3,fill:new Fill({color:'#e9c775'}),stroke:new Stroke({color:'#172332',width:1})})}));source.addFeature(f)}
  }
  return()=>{map.removeLayer(layer)};
- },[mapRef,data,enabled,wind,forecast,history,showCurrent]);
+ },[mapRef,data,enabled,wind,forecast,history,showCurrent,showForecastTimestamp]);
 }
