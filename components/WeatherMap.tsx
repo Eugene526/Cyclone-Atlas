@@ -277,6 +277,14 @@ export default function WeatherMap(p: {
         const oldSize = m.getSize()!,
           v = m.getView(),
           oldRes = v.getResolution()!;
+        const labelStyles:any[]=[];
+        for(const layer of m.getLayers().getArray() as any[]){
+          const source=layer.getSource?.();
+          for(const feature of source?.getFeatures?.()||[]){
+            const exportStyle=feature.get("exportStyle");
+            if(exportStyle){labelStyles.push([feature,feature.getStyle()]);feature.setStyle(exportStyle)}
+          }
+        }
         m.once("rendercomplete", async () => {
           try {
             const c = document.createElement("canvas");
@@ -340,6 +348,7 @@ export default function WeatherMap(p: {
           } catch {
             cb.current.onStatus("匯出失敗，請等圖磚載入後重試");
           } finally {
+            for(const [feature,style] of labelStyles)feature.setStyle(style);
             m.setSize(oldSize);
             v.setResolution(oldRes);
           }
@@ -464,7 +473,9 @@ export default function WeatherMap(p: {
       if(!anchor)return;
       add(new LineString([origin,anchor]),"rgba(235,246,250,.9)",1);
       const label=new Feature(new Point(anchor));
-      label.setStyle(new Style({text:new Text({text,font:"600 11px sans-serif",textAlign:side>0?"left":"right",offsetX:side*5,fill:new Fill({color:"#f4fbff"}),stroke:new Stroke({color:"#10202a",width:3}),backgroundFill:new Fill({color:"rgba(9,25,36,.92)"}),backgroundStroke:new Stroke({color:"rgba(210,233,240,.72)",width:1}),padding:[4,6,4,6]})}));
+      const makeLabelStyle=(fontSize:number)=>new Style({text:new Text({text,font:`700 ${fontSize}px sans-serif`,textAlign:side>0?"left":"right",offsetX:side*5,fill:new Fill({color:"#f4fbff"}),stroke:new Stroke({color:"#10202a",width:fontSize>12?5:3}),backgroundFill:new Fill({color:"rgba(9,25,36,.94)"}),backgroundStroke:new Stroke({color:"rgba(210,233,240,.86)",width:fontSize>12?2:1}),padding:fontSize>12?[8,11,8,11]:[4,6,4,6]})});
+      label.set("exportStyle",makeLabelStyle(25));
+      label.setStyle(makeLabelStyle(11));
       s.addFeature(label);
     };
     for (const storm of p.storms) {
