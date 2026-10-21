@@ -562,41 +562,8 @@ export default function WeatherMap(p: {
           const windText=Number(spec.maximumWind?.sustained?.["m/s"])>0?`${spec.maximumWind.sustained["m/s"]} m/s`:spec.category?.en||"強度未提供";
           const pressureText=spec.pressure?` · ${spec.pressure} hPa`:"";
           callout(f.center,`${timeText?`${timeText} UTC+8\n`:""}${windText}${pressureText}`,f.advancedHours||0);
-          // JMA's probabilityCircle is center-position uncertainty, never a wind radius.
-          // Draw it as a distinct white dashed outline, separate from warning/wind circles.
-          if (f.probabilityCircle?.radius > 0) add(circular([f.center[1],f.center[0]],f.probabilityCircle.radius,100).transform("EPSG:4326","EPSG:3857"),"#fff",2,undefined,[6,5]);
-          if(p.wind){
-            const fg=f.galeWarningArea;
-            if(fg)add(circular([fg.center[1],fg.center[0]],fg.radius,120).transform("EPSG:4326","EPSG:3857"),"#ffdc55",1.4,"rgba(255,217,72,.20)");
-            for(const a of f.stormWarningArea?.arc||[])add(circular([a[0][1],a[0][0]],a[1],100).transform("EPSG:4326","EPSG:3857"),"#ff626f",1.6,"rgba(255,67,83,.24)");
-            for(const line of f.stormWarningArea?.line||[])add(new LineString(line.map(point)),"#ff626f",1.5);
-          }
-        }
-        const last = forecasts.at(-1);
-        for (const line of last?.stormWarningArea?.line || [])
-          add(new LineString(line.map(point)), "#ff795f", 1.5);
-        for (const arc of last?.stormWarningArea?.arc || []) {
-          const coords = [];
-          for (let angle = arc[2][0]; angle <= arc[2][1]; angle += 2) {
-            const rad = (angle * Math.PI) / 180,
-              lat = (arc[0][0] * Math.PI) / 180,
-              lon = (arc[0][1] * Math.PI) / 180,
-              d = arc[1] / 6371008.8;
-            const la = Math.asin(
-              Math.sin(lat) * Math.cos(d) +
-                Math.cos(lat) * Math.sin(d) * Math.cos(rad),
-            );
-            const lo =
-              lon +
-              Math.atan2(
-                Math.sin(rad) * Math.sin(d) * Math.cos(lat),
-                Math.cos(d) - Math.sin(lat) * Math.sin(la),
-              );
-            coords.push(
-              fromLonLat([(lo * 180) / Math.PI, (la * 180) / Math.PI]),
-            );
-          }
-          if (coords.length > 1) add(new LineString(coords), "#ff795f", 1.5);
+          // JMA future circles are position-uncertainty circles, not wind circles.
+          if (f.centerUncertainty?.radiusMeters > 0) add(circular([f.center[1],f.center[0]],f.centerUncertainty.radiusMeters,100).transform("EPSG:4326","EPSG:3857"),"#fff",2,undefined,[6,5]);
         }
       }
     }

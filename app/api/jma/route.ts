@@ -9,11 +9,19 @@ export async function GET() {
       targets.map(async (t: any) => {
         if (!/^TC\d+$/.test(t.tropicalCyclone)) return null;
         try {
-          const f = await (
+          const rawForecast = await (
             await upstream(
               `https://www.jma.go.jp/bosai/typhoon/data/${t.tropicalCyclone}/forecast.json`,
             )
           ).json();
+          if (!Array.isArray(rawForecast)) throw new Error("JMA 預報資料格式異常");
+          // The JMA probabilityCircle is center-position uncertainty, not a wind radius.
+          const f = rawForecast.map((point: any) => ({
+            ...point,
+            centerUncertainty: point.probabilityCircle?.radius > 0
+              ? { radiusMeters: point.probabilityCircle.radius, tangent: point.probabilityCircle.tangent || [] }
+              : null,
+          }));
           let specifications: any = [];
           try {
             specifications = await (
