@@ -51,6 +51,7 @@ export default function Observatory() {
   const [frameReady, setFrameReady] = useState(false),
     [rangeEnd, setRangeEnd] = useState(""),
     [latest, setLatest] = useState(""),
+    [satelliteFallback, setSatelliteFallback] = useState(false),
     [time, setTime] = useState(""),
     [animationStart, setAnimationStart] = useState(""),
     [mobileTimeOpen, setMobileTimeOpen] = useState(false),
@@ -92,6 +93,7 @@ export default function Observatory() {
       const r = await fetch("/api/satellite");
       const d: any = await r.json();
       if (!r.ok) throw Error(d.error);
+      setSatelliteFallback(d.fallback === true);
       setLatest(d.time);
       if (liveRef.current) {
         setTime(d.time);
@@ -99,6 +101,7 @@ export default function Observatory() {
         setAnimationStart("");
       }
     } catch (e) {
+      setSatelliteFallback(false);
       setStatus("衛星資料源暫時未回應");
     }
     try {
@@ -281,7 +284,7 @@ export default function Observatory() {
       </header>
       <div className="canvas-shell">
         <WeatherMap
-          cwa={cwa} agency={agency} cwaHistory={cwaHistory} showCurrent={showCurrent} pathPrediction={pathPrediction} showForecastTimestamps={showForecastTimestamps} showCoastline={showCoastline} warningLayers={warningLayers} cwaError={cwaError}
+          cwa={cwa} agency={agency} cwaHistory={cwaHistory} showCurrent={showCurrent} pathPrediction={pathPrediction} showForecastTimestamps={showForecastTimestamps} showCoastline={showCoastline} warningLayers={warningLayers} cwaError={cwaError} satelliteFallback={satelliteFallback}
           radars={radars} onRadarReady={setRadarReady} onRadarStatus={setRadarStatus}
           time={time}
           mode={effective}

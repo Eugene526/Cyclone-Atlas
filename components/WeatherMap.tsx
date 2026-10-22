@@ -7,8 +7,10 @@ import {useRadar} from "./useRadar";
 import {incomingLayerReady} from "@/lib/radar-loading.mjs";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
+import ImageLayer from "ol/layer/Image";
 import VectorLayer from "ol/layer/Vector";
 import XYZ from "ol/source/XYZ";
+import ImageStatic from "ol/source/ImageStatic";
 import VectorSource from "ol/source/Vector";
 import TileGrid from "ol/tilegrid/TileGrid";
 import GeoJSON from "ol/format/GeoJSON";
@@ -52,6 +54,7 @@ export default function WeatherMap(p: {
   cwa:any; agency:string; warningLayers:any; cwaError:boolean; cwaHistory:boolean;
   showCurrent?:boolean; pathPrediction?:boolean; showCoastline?:boolean;
   showForecastTimestamps?:boolean;
+  satelliteFallback?:boolean;
   advisoryItems?: any[];
   radars: string[];
   onRadarReady:(ready:boolean)=>void;
@@ -224,6 +227,21 @@ export default function WeatherMap(p: {
       cancelPreload: () => { preloadToken.current++; },
       preload: async (times, modeForTime, progress) => {
         const token = ++preloadToken.current;
+        if (cb.current.satelliteFallback) {
+          let cursor = 0, done = 0, failed = 0;
+          progress(0, times.length);
+          const worker = async () => {
+            while (cursor < times.length && token === preloadToken.current) {
+              const time = times[cursor++], image = new Image();
+              image.src = `/api/satellite?image=1&time=${stamp(time)}&mode=${modeForTime(time)}`;
+              try { await image.decode(); } catch { failed++; }
+              done++;
+              try { progress(done, times.length); } catch { /* progress UI must not interrupt preloading */ }
+            }
+          };
+          await Promise.all(Array.from({length: Math.min(4, times.length)}, worker));
+          return {cancelled: token !== preloadToken.current, failed, total: times.length};
+        }
         const extent = m.getView().calculateExtent(m.getSize());
         const projection = m.getView().getProjection();
         const resolution = m.getView().getResolution()!;
@@ -388,17 +406,28 @@ export default function WeatherMap(p: {
     const m = map.current;
     let active = true,
       failed = 0;
-    const source = imagery(p.time, p.mode, p.playing),
-      old = sat.current;
+    const old = sat.current;
     cb.current.onLoading();
-    cb.current.onStatus(
-      p.playing ? "準備動畫影格…" : "漸進載入：先概覽，再補細節…",
-    );
-    const layer = new TileLayer({ source, opacity: 0.001, preload: 0, visible: !cb.current.pathPrediction });
-    sat.current = layer;
-    m.getLayers().insertAt(1, layer);
+    cb.current.onStatus(p.satelliteFallback ? "NICT 暫時未回應；載入 JMA 衛星備援圖…" : p.playing ? "準備動畫影格…" : "漸進載入：先概覽，再補細節…");
+    let layer: TileLayer<XYZ> | null = null, fallback: ImageLayer<ImageStatic> | null = null;
+    if (p.satelliteFallback) {
+      fallback = new ImageLayer({source:new ImageStatic({
+        url:`/api/satellite?image=1&time=${stamp(p.time)}&mode=${p.mode}`,
+        imageExtent:[105,0,140,30], projection:"EPSG:4326", crossOrigin:"anonymous",
+      }), opacity:p.opacity, visible:!cb.current.pathPrediction, zIndex:1});
+      sat.current = fallback;
+      m.getLayers().insertAt(1, fallback);
+      const imageSource = fallback.getSource()!;
+      imageSource.on("imageloadend", () => { if(active) { if(old) m.removeLayer(old); cb.current.onStatus("JMA 衛星備援圖已載入（臺灣與鄰近海域）"); cb.current.onLoaded(); } });
+      imageSource.on("imageloaderror", () => { if(active) cb.current.onStatus("JMA 備援影像此時刻缺圖"); });
+    } else {
+      const source = imagery(p.time, p.mode, p.playing);
+      layer = new TileLayer({ source, opacity: 0.001, preload: 0, visible: !cb.current.pathPrediction });
+      sat.current = layer;
+      m.getLayers().insertAt(1, layer);
+    }
     let preview: TileLayer<XYZ> | null = null;
-    if (!old && !p.playing) {
+    if (!p.satelliteFallback && !old && !p.playing) {
       preview = new TileLayer({
         source: imagery(p.time, p.mode, false, true),
         opacity: p.opacity,
@@ -406,14 +435,14 @@ export default function WeatherMap(p: {
       });
       m.getLayers().insertAt(1, preview);
     }
-    const errorKey = source.on("tileloaderror", () => {
+    const errorKey = layer?.getSource()?.on("tileloaderror", () => {
       failed++;
       if (active) cb.current.onStatus("部分圖磚缺漏，請更換時間或重試");
     });
     const done = m.on("postrender", () => {
-      if (!active || !incomingLayerReady(layer.getRenderer())) return;
+      if (!active || !layer || !incomingLayerReady(layer.getRenderer())) return;
       unByKey(done);
-      if (old && cb.current.playing) {
+      if (old && cb.current.playing && layer) {
         const start = performance.now(),
           fade = () => {
             if (!active) return;
@@ -424,7 +453,7 @@ export default function WeatherMap(p: {
           };
         requestAnimationFrame(fade);
       } else {
-        layer.setOpacity(cb.current.opacity);
+        layer?.setOpacity(cb.current.opacity);
         if (old) m.removeLayer(old);
       }
       if (preview) m.removeLayer(preview);
@@ -435,11 +464,13 @@ export default function WeatherMap(p: {
     return () => {
       active = false;
       unByKey(done);
-      unByKey(errorKey);
+      if (errorKey) unByKey(errorKey);
       if (old) m.removeLayer(old);
       if (preview) m.removeLayer(preview);
+      if (fallback) m.removeLayer(fallback);
+      if (layer) m.removeLayer(layer);
     };
-  }, [p.time, p.mode, p.playing]);
+  }, [p.time, p.mode, p.playing, p.satelliteFallback]);
   useEffect(() => sat.current?.setOpacity(p.opacity), [p.opacity]);
   useEffect(()=>{sat.current?.setVisible(!p.pathPrediction);coastLayer.current?.setVisible(p.showCoastline!==false);landLayer.current?.setVisible(true);el.current?.classList.toggle("path-prediction-map",!!p.pathPrediction)},[p.pathPrediction,p.showCoastline]);
   useEffect(()=>{if(!p.thermal)probeSelection.current?.clear()},[p.thermal]);
