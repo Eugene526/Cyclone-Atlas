@@ -384,7 +384,9 @@ export default function WeatherMap(p: {
     cb.current.onStatus(
       p.playing ? "準備動畫影格…" : "漸進載入：先概覽，再補細節…",
     );
-    const layer = new TileLayer({ source, opacity: 0.001, preload: 0, visible: !cb.current.pathPrediction });
+    // True-color may have unavailable tiles. Render all available tiles now;
+    // only the IR modes wait for a complete incoming frame.
+    const layer = new TileLayer({ source, opacity: p.mode === "rgb" ? p.opacity : 0.001, preload: 0, visible: !cb.current.pathPrediction });
     sat.current = layer;
     m.getLayers().insertAt(1, layer);
     let preview: TileLayer<XYZ> | null = null;
@@ -401,7 +403,7 @@ export default function WeatherMap(p: {
       if (active) cb.current.onStatus("少數圖磚仍無資料，請稍後重試");
     });
     const done = m.on("postrender", () => {
-      if (!active || !incomingLayerReady(layer.getRenderer())) return;
+      if (!active || (p.mode !== "rgb" && !incomingLayerReady(layer.getRenderer()))) return;
       unByKey(done);
       if (old && cb.current.playing) {
         const start = performance.now(),
@@ -418,7 +420,7 @@ export default function WeatherMap(p: {
         if (old) m.removeLayer(old);
       }
       if (preview) m.removeLayer(preview);
-      cb.current.onStatus(failed ? "少數圖磚仍無資料" : "影像已載入");
+      cb.current.onStatus(failed ? (p.mode === "rgb" ? "已顯示可用的真實色圖磚；部分區域缺圖" : "少數圖磚仍無資料") : "影像已載入");
       cb.current.onLoaded();
     });
     m.render();

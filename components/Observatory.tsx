@@ -395,7 +395,7 @@ export default function Observatory() {
             <p>
               {effective === "bw"
                 ? "亮白較冷，深灰較暖；非可見光照片。"
-                : "白天顯示真實色；缺格先以同時刻低層級真實色補位，必要時改用紅外線灰階。"}
+                : "直接顯示來源提供的真實色圖磚；個別圖磚缺漏不會阻止其餘影像顯示。"}
             </p>
           )}
           <div className="map-meta">
