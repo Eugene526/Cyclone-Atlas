@@ -1,4 +1,4 @@
-import { upstream, failed } from "@/lib/upstream";
+import { failed } from "@/lib/upstream";
 export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
   const mode = p.get("mode"),
@@ -21,8 +21,8 @@ export async function GET(req: Request) {
     for (const host of hosts) {
       const url = `${host}${path}`;
       try {
-        const r = await upstream(url);
-        if (!(r.headers.get("content-type") ?? "").includes("image/png")) continue;
+        const r = await fetch(url, {signal:AbortSignal.timeout(hosts.indexOf(host) === 0 ? 3500 : 10000)});
+        if (!r.ok || !(r.headers.get("content-type") ?? "").includes("image/png")) continue;
         const data = new Uint8Array(await r.arrayBuffer());
         const png = data.length > 26 && data.slice(0, 8).every((v, i) => v === [137,80,78,71,13,10,26,10][i]);
         if (!png) continue;
