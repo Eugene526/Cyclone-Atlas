@@ -395,7 +395,7 @@ export default function Observatory() {
             <p>
               {effective === "bw"
                 ? "亮白較冷，深灰較暖；非可見光照片。"
-                : "保留雲系紋理與地表色彩；夜側無日照。"}
+                : "白天顯示真實色；缺格先以同時刻低層級真實色補位，必要時改用紅外線灰階。"}
             </p>
           )}
           <div className="map-meta">

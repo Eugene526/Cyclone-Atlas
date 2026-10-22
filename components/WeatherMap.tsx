@@ -398,7 +398,7 @@ export default function WeatherMap(p: {
     }
     const errorKey = source.on("tileloaderror", () => {
       failed++;
-      if (active) cb.current.onStatus("部分圖磚缺漏，請更換時間或重試");
+      if (active) cb.current.onStatus("少數圖磚仍無資料，請稍後重試");
     });
     const done = m.on("postrender", () => {
       if (!active || !incomingLayerReady(layer.getRenderer())) return;
@@ -418,7 +418,7 @@ export default function WeatherMap(p: {
         if (old) m.removeLayer(old);
       }
       if (preview) m.removeLayer(preview);
-      cb.current.onStatus(failed ? "影格有缺圖；未補造影像" : "影像已載入");
+      cb.current.onStatus(failed ? "少數圖磚仍無資料" : "影像已載入");
       cb.current.onLoaded();
     });
     m.render();
