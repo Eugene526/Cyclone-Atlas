@@ -4,7 +4,7 @@ export async function GET() {
   try {
     // NICT's Himawari mirror uses the same D531106/FULL_24h tile scheme.
     // Do not gate the timestamp on visible-light RGB tiles: they are blank at night.
-    const data: any = await (await upstream("https://himawari.asia/img/D531106/latest.json")).json();
+    const data: any = await (await upstream("https://himawari8.nict.go.jp/img/D531106/latest.json")).json();
     const time = data.date.replace(" ", "T") + "Z";
     if (!Number.isFinite(Date.parse(time))) throw new Error("來源時間格式異常");
     return json({
