@@ -1,33 +1,15 @@
 import { json, failed } from "@/lib/upstream";
 
-const hosts = ["https://himawari8.nict.go.jp", "https://himawari.asia"];
-
-async function latest(host: string) {
-  const response = await fetch(`${host}/img/D531106/latest.json`, { signal: AbortSignal.timeout(4500) });
-  if (!response.ok) throw new Error(`NICT 回覆 ${response.status}`);
-  const data: any = await response.json();
-  const time = String(data.date || "").replace(" ", "T") + "Z";
-  if (!Number.isFinite(Date.parse(time))) throw new Error("來源時間格式異常");
-  return { time, host };
-}
-
 export async function GET() {
   try {
-    // Read both NICT entry points; the older one can lag even while returning 200.
-    // RGB tiles are naturally blank at night and must not gate the observation time.
-    const results = await Promise.allSettled(hosts.map(latest));
-    const available = results.filter((r): r is PromiseFulfilledResult<{time:string;host:string}> => r.status === "fulfilled").map(r => r.value);
-    if (!available.length) throw new Error("NICT 衛星資料源暫時未回應");
-    const newest = available.sort((a,b) => Date.parse(b.time)-Date.parse(a.time))[0];
-    return json({
-      time: newest.time,
-      source: "NICT Himawari",
-      availableHosts: available.map(r => ({ host: new URL(r.host).host, time: r.time })),
-      checkedAt: new Date().toISOString(),
-      cadenceMinutes: 10,
-      archiveNote: "真實色需要日照；夜間自動切換黑白紅外線。缺圖不會以舊時刻冒充最新影像。",
-    }, 60);
-  } catch (e) {
-    return failed(e);
-  }
+    const response = await fetch("https://www.jma.go.jp/bosai/himawari/data/satimg/targetTimes_fd.json", { signal: AbortSignal.timeout(7000) });
+    if (!response.ok) throw new Error(`JMA 回覆 ${response.status}`);
+    const frames: unknown = await response.json();
+    if (!Array.isArray(frames)) throw new Error("JMA 時間列表格式異常");
+    const times = frames.map((item: any) => item?.validtime).filter((value): value is string => typeof value === "string" && /^\d{14}$/.test(value)).sort();
+    if (!times.length) throw new Error("JMA 尚未提供影像時間");
+    const latest = times[times.length - 1];
+    const time = `${latest.slice(0,4)}-${latest.slice(4,6)}-${latest.slice(6,8)}T${latest.slice(8,10)}:${latest.slice(10,12)}:00Z`;
+    return json({time,source:"JMA Himawari",checkedAt:new Date().toISOString(),cadenceMinutes:10,archiveNote:"所有衛星模式使用同一 JMA 觀測時間；真實色夜間無日照，自動模式切換黑白紅外線。"},60);
+  } catch (e) { return failed(e); }
 }

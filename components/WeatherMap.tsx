@@ -13,7 +13,6 @@ import VectorSource from "ol/source/Vector";
 import TileGrid from "ol/tilegrid/TileGrid";
 import GeoJSON from "ol/format/GeoJSON";
 import {
-  transform,
   fromLonLat,
   toLonLat,
   transformExtent,
@@ -27,7 +26,6 @@ import { Point, LineString } from "ol/geom";
 import { circular } from "ol/geom/Polygon";
 import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
-import {cloudTemperature} from "@/lib/cloud-probe";
 import { imagery } from "@/lib/imagery";
 import { unwrapTrack } from "@/lib/track-geometry.mjs";
 import { unByKey } from "ol/Observable";
@@ -135,15 +133,7 @@ export default function WeatherMap(p: {
         },
         { hitTolerance: 8 },
       );
-      if (!chosen) {
-        if(cb.current.mode!=="ott"){probeSelection.current?.clear();return;}
-        const id=++probeID.current,time=cb.current.time,[lon,lat]=toLonLat(e.coordinate),size=m.getSize()||[0,0];
-        probeSelection.current?.clear();probeSelection.current?.addFeature(new Feature(new Point(e.coordinate)));
-        const detail={kind:'thermal',time,lon:((lon+180)%360+360)%360-180,lat,popupPosition:{x:e.pixel[0],y:e.pixel[1],width:size[0],height:size[1]},loading:true};
-        cb.current.onThermal(detail);
-        cloudTemperature(time,transform(fromLonLat([detail.lon,lat]),'EPSG:3857','HIMAWARI')).then(value=>{if(id===probeID.current&&cb.current.time===time&&cb.current.mode==='ott')cb.current.onThermal({...detail,...value,loading:false})}).catch(error=>{if(id===probeID.current&&cb.current.time===time&&cb.current.mode==='ott')cb.current.onThermal({...detail,error:error.message,loading:false})});
-        return;
-      }
+      if (!chosen) { probeSelection.current?.clear(); return; }
       const size = m.getSize() || [0, 0];
       const popupPosition = {
         x: e.pixel[0],

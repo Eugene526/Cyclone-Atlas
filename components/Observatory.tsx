@@ -326,7 +326,7 @@ export default function Observatory() {
             {(
               [
                 ["auto", "自動"],
-                ["ott", "OTT 強化"],
+                ["ott", "雲頂強化"],
                 ["rgb", "真實色"],
                 ["bw", "黑白"],
               ] as [Mode, string][]
@@ -383,26 +383,14 @@ export default function Observatory() {
         <div className="map-legend">
           <div className="legend-title">
             {effective === "ott"
-              ? "雲頂亮溫 · 約 °C"
+              ? "JMA 雲頂強化 · 色階非溫度刻度"
               : effective === "bw"
-                ? "紅外線 · 亮度強化"
+                ? "JMA 黑白紅外線"
                 : "日間真實色合成"}
             <span>HIMAWARI-9</span>
           </div>
           {effective === "ott" ? (
-            <>
-              <div className="thermal-gradient" />
-              <div className="legend-ticks">
-                <span>−90</span>
-                <span>−70</span>
-                <span>−50</span>
-                <span>−30</span>
-                <span>−10</span>
-                <span>+10</span>
-                <span>+30</span>
-                <span>+50</span>
-              </div>
-            </>
+            <p>官方雲頂強化影像；顏色用於辨識雲系，不代表精確溫度。</p>
           ) : (
             <p>
               {effective === "bw"
@@ -631,7 +619,6 @@ export default function Observatory() {
             </a>
           </aside>
         )}
-        {thermal&&<article className="cloud-temperature-popup" style={{left:Math.max(8,Math.min(thermal.popupPosition.width-232,thermal.popupPosition.x+12)),top:Math.max(8,Math.min(thermal.popupPosition.height-190,thermal.popupPosition.y-60))}} aria-label="雲頂亮溫資訊"><button className="icon-button close" aria-label="關閉雲頂溫度" onClick={()=>setThermal(null)}><X size={16}/></button><small>OTT · 亮溫估計值</small><strong>{thermal.loading?'讀取中…':thermal.error?'資料未取得':thermal.temperature.toFixed(1)+' °C'}</strong><p>{thermal.lat.toFixed(2)}° · {thermal.lon.toFixed(2)}°</p><p>{new Date(thermal.time).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false})} · UTC+8</p><footer>{thermal.error||'估計值，非原始定標溫度；有雲時近似雲頂溫度，晴空可能為地表亮溫。'}</footer></article>}
         {pointInfo && (
           pointInfo.kind==="cwa"||pointInfo.kind==="warning-area"?<CwaPointDetails data={pointInfo} onClose={()=>setPointInfo(null)}/>:<PointDetails data={pointInfo} onClose={() => setPointInfo(null)} />
         )}
@@ -808,7 +795,7 @@ export default function Observatory() {
             >
               <X />
             </button>
-            <div className="eyebrow">使用指南</div><h2>如何閱讀衛星雲圖</h2><h3>選擇雲圖模式</h3><p>真實色適合白天查看雲層外觀；黑白紅外線可全天觀察雲頂溫度與雲系形狀；OTT 強化以色階凸顯不同溫度的雲頂，色彩不是實際雲的顏色，也不直接等於雨量或風速。自動模式依地圖中心與影像時間切換日夜顯示。</p><h3>時間與動畫</h3><p>畫面標示衛星觀測時間與時區，不是預報時間。拖曳時間軸選擇影像，或設定日期、時間與動畫起始點；播放間隔控制影格之間的觀測時間差。手機可展開時間設定，完成後收合以保留地圖空間。歷史影像可能因來源保存期限而缺圖。</p><h3>查看颱風路徑</h3><p>官方路徑與模式路徑可分別開關。點選預報位置可查看該時間與來源提供的資訊；不同系集成員呈現可能的路徑分歧，不是同時存在多個颱風。已走路徑是目前颱風過去的位置。</p><h3>CWA 警報與風圈</h3><p>紅字颱風警報卡片顯示 CWA 最新有效公告；切換 CWA／JMA 只改變颱風路徑來源，不改變臺灣警報來源。CWA 黃色為七級風、橘紅色為十級風，白色虛線包絡區為中心70%機率範圍。四象限未提供時使用來源平均半徑，不以 JMA 資料代填。紅色縣市表示預測風圈可能影響的行政區，請同時查看官方警報。</p><h3>JMA 風圈與警戒範圍</h3><p>黃色表示烈風圈（30 節以上），紅色表示暴風圈（50 節以上）。白色虛線圓表示預報中心的機率範圍，不是風圈；紅色暴風警戒域也不表示整區目前都有暴風。資料時間與衛星影像時間可能不同，請查看圖層標示。</p><h3>地圖與下載</h3><p>拖曳移動、縮放查看細節。衛星涵蓋範圍以向日葵衛星可觀測區域為限；放大與下載不會新增衛星原本沒有的細節。</p><p className="muted">本網站供天氣觀察，防災請以中央氣象署與所在地官方警報為準。</p><a href="https://himawari8.nict.go.jp/" target="_blank" rel="noreferrer">紅外線衛星來源：NICT ↗</a> · <a href="https://www.data.jma.go.jp/mscweb/data/himawari/index.html" target="_blank" rel="noreferrer">真實色來源：JMA（NOAA/NESDIS、CSU/CIRA 合作）↗</a> · <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" rel="noreferrer">日本氣象廳颱風資訊 ↗</a>
+            <div className="eyebrow">使用指南</div><h2>如何閱讀衛星雲圖</h2><h3>選擇雲圖模式</h3><p>真實色適合白天查看雲層外觀；黑白紅外線可全天觀察雲頂溫度與雲系形狀；雲頂強化採用日本氣象廳官方增強影像，凸顯雲頂差異，色彩不是實際雲的顏色，也不直接等於雨量或風速。自動模式依地圖中心與影像時間切換日夜顯示。</p><h3>時間與動畫</h3><p>畫面標示衛星觀測時間與時區，不是預報時間。拖曳時間軸選擇影像，或設定日期、時間與動畫起始點；播放間隔控制影格之間的觀測時間差。手機可展開時間設定，完成後收合以保留地圖空間。歷史影像可能因來源保存期限而缺圖。</p><h3>查看颱風路徑</h3><p>官方路徑與模式路徑可分別開關。點選預報位置可查看該時間與來源提供的資訊；不同系集成員呈現可能的路徑分歧，不是同時存在多個颱風。已走路徑是目前颱風過去的位置。</p><h3>CWA 警報與風圈</h3><p>紅字颱風警報卡片顯示 CWA 最新有效公告；切換 CWA／JMA 只改變颱風路徑來源，不改變臺灣警報來源。CWA 黃色為七級風、橘紅色為十級風，白色虛線包絡區為中心70%機率範圍。四象限未提供時使用來源平均半徑，不以 JMA 資料代填。紅色縣市表示預測風圈可能影響的行政區，請同時查看官方警報。</p><h3>JMA 風圈與警戒範圍</h3><p>黃色表示烈風圈（30 節以上），紅色表示暴風圈（50 節以上）。白色虛線圓表示預報中心的機率範圍，不是風圈；紅色暴風警戒域也不表示整區目前都有暴風。資料時間與衛星影像時間可能不同，請查看圖層標示。</p><h3>地圖與下載</h3><p>拖曳移動、縮放查看細節。衛星涵蓋範圍以向日葵衛星可觀測區域為限；放大與下載不會新增衛星原本沒有的細節。</p><p className="muted">本網站供天氣觀察，防災請以中央氣象署與所在地官方警報為準。</p><a href="https://www.data.jma.go.jp/mscweb/data/himawari/index.html" target="_blank" rel="noreferrer">衛星圖來源：JMA ↗</a> · <a href="https://www.data.jma.go.jp/mscweb/data/himawari/index.html" target="_blank" rel="noreferrer">真實色合作：JMA、NOAA/NESDIS、CSU/CIRA ↗</a> · <a href="https://www.jma.go.jp/bosai/map.html#contents=typhoon" target="_blank" rel="noreferrer">日本氣象廳颱風資訊 ↗</a>
 </article>
         </div>
       )}
