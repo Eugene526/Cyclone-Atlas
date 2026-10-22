@@ -16,16 +16,22 @@ export async function GET(req: Request) {
   const stamp = `${time.slice(0, 4)}/${time.slice(4, 6)}/${time.slice(6, 8)}/${time.slice(8)}00`;
   const product = mode === "ir" ? "FULL_24h/B13" : "D531106";
   const path = `/img/${product}/${n}d/550/${stamp}_${x}_${y}.png`;
-  const hosts = ["https://himawari8.nict.go.jp", "https://himawari.asia"];
+  // The legacy entry point serves RGB well, while its recent B13 tiles can be
+  // opaque placeholders. Prefer the healthy B13 entry point without downloading
+  // every tile twice; still retry the other host if the first tile is invalid.
+  const hosts = mode === "ir"
+    ? ["https://himawari.asia", "https://himawari8.nict.go.jp"]
+    : ["https://himawari8.nict.go.jp", "https://himawari.asia"];
   try {
     for (const host of hosts) {
       const url = `${host}${path}`;
       try {
-        const r = await fetch(url, {signal:AbortSignal.timeout(hosts.indexOf(host) === 0 ? 3500 : 10000)});
+        const r = await fetch(url, {signal:AbortSignal.timeout(host === "https://himawari8.nict.go.jp" ? 3500 : 10000)});
         if (!r.ok || !(r.headers.get("content-type") ?? "").includes("image/png")) continue;
         const data = new Uint8Array(await r.arrayBuffer());
         const png = data.length > 26 && data.slice(0, 8).every((v, i) => v === [137,80,78,71,13,10,26,10][i]);
         if (!png) continue;
+        if (mode === "rgb" && data.length < 3000) continue;
         // NICT B13 temperatures are encoded in PNG alpha. Its small, opaque RGB
         // placeholder is HTTP 200 too; passing it to the LUT paints the map white.
         if (mode === "ir" && ![4,6].includes(data[25])) continue;
