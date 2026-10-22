@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     return Response.json({ error: "無效圖磚參數" }, { status: 400 });
   const stamp = `${time.slice(0, 4)}/${time.slice(4, 6)}/${time.slice(6, 8)}/${time.slice(8)}00`;
   const product = mode === "ir" ? "FULL_24h/B13" : "D531106";
-  const url = `https://himawari8.nict.go.jp/img/${product}/${n}d/550/${stamp}_${x}_${y}.png`;
+  const url = `https://himawari.asia/img/${product}/${n}d/550/${stamp}_${x}_${y}.png`;
   try {
     const r = await upstream(url);
     if (!(r.headers.get("content-type") ?? "").includes("image/"))
