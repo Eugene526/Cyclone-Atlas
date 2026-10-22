@@ -12,6 +12,24 @@ export function imagery(
   const key = `${time}|${mode}|${_animation}|${overview}`;
   const cached = sources.get(key);
   if (cached) return cached;
+  if (mode === "rgb") {
+    // Official JMA full-disk True Color Reproduction is served as Web Mercator
+    // tiles. Its z3–5 imagery is independent of NICT's incomplete D531106 tiles.
+    const source = new XYZ({
+      projection: "EPSG:3857",
+      minZoom: 3,
+      maxZoom: 5,
+      tileSize: 256,
+      crossOrigin: "anonymous",
+      transition: 0,
+      tileUrlFunction: c => c && c[0] >= 3 && c[0] <= 5
+        ? `/api/jma-satellite-tile?time=${stamp(time)}&z=${c[0]}&x=${c[1]}&y=${c[2]}`
+        : undefined,
+    });
+    sources.set(key, source);
+    while (sources.size > 40) sources.delete(sources.keys().next().value!);
+    return source;
+  }
   const ir = mode !== "rgb",
     ns = overview
       ? [1, 2]
