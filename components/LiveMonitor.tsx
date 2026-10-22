@@ -57,7 +57,7 @@ export default function LiveMonitor(){
  const night=phase===0&&!isDaylight(frame,targetLat,targetLon);
  const mode=phase===0?(night?'bw':'rgb'):phase===3?'ott':'bw';
  const sceneTitle=['颱風衛星雲圖','臺灣雷達回波','警特報發布區域','雲頂溫度分析'][phase];
- const sceneSubtitle=['衛星特寫與颱風目前位置','近三小時觀測影格循環','依氣象署有效特報標示縣市','官方雲頂強化影像'][phase];
+ const sceneSubtitle=['衛星特寫與颱風目前位置','近三小時觀測影格循環','依氣象署有效特報標示縣市','B13 紅外線色階強化'][phase];
  const items=advisories?.items||EMPTY,bulletins=advisories?.bulletins||EMPTY;
  const alertItems=phase===2?items:EMPTY;
  const tickerItems=[...(cwa?.warning?.active?[cwa.warning.headline]:[]),...bulletins.map((b:any)=>`${b.title}：${short(String(b.text||''),220)}`)];
@@ -94,7 +94,7 @@ export default function LiveMonitor(){
     <div className="broadcast-map-key">
      {phase===2?<><b>警特報燈號</b>{(['red','orange','yellow','green'] as const).map(level=>{const areas=[...new Set(items.filter((v:any)=>v.level===level).map((v:any)=>v.area))];return areas.length?<span key={level}><i className={'lamp-'+level}/>{areas.join('、')}</span>:null})}{!items.length&&<span>目前無有效發布區域</span>}</>:
       phase===1?<><b>雷達回波</b><span className="radar-gradient"/> <small>弱　　中　　強</small></>:
-      <><b>{mode==='rgb'?'真實色衛星':mode==='ott'?'雲頂強化':'黑白紅外線'}</b><span>颱風目前位置與七級風半徑</span></>}
+      <><b>{mode==='rgb'?'真實色衛星':mode==='ott'?'OTT 強化':'黑白紅外線'}</b><span>颱風目前位置與七級風半徑</span></>}
     </div>
     <div className="broadcast-frame-time"><b>觀測時間</b><time>{frame?fmt(frame):'影格載入中'}</time><span>UTC+8</span></div>
     <div className="broadcast-frame-progress"><i style={{width:`${latest&&frame?Math.max(0,Math.min(100,100-(Date.parse(latest)-Date.parse(frame))/108000)):0}%`}}/></div>
