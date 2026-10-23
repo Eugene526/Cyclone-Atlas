@@ -290,8 +290,8 @@ export default function Observatory() {
           opacity={opacity}
           storms={agency==="jma"?storms:[]}
           wind={wind}
-          forecast={forecast}
-          models={displayedModels}
+          forecast={pathPrediction && forecast}
+          models={pathPrediction ? displayedModels : []}
           thermal={thermal}
           onThermal={d=>setThermal((previous:any)=>acceptThermal(previous,d))}
           onPoint={setPointInfo}
@@ -552,7 +552,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />
-                  {agency==="cwa"?"七級／十級風圈（現在與預報）":"烈風圈與暴風圈"}
+                  {agency==="cwa"?(pathPrediction?"七級／十級風圈（現在與預報）":"目前七級／十級風圈"):"目前烈風圈與暴風圈"}
                 </span>
                 <input
                   type="checkbox"
@@ -560,6 +560,7 @@ export default function Observatory() {
                   onChange={(e) => setWind(e.target.checked)}
                 />
               </label>
+              {pathPrediction && (
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot coral" />
@@ -571,6 +572,7 @@ export default function Observatory() {
                   onChange={(e) => setForecast(e.target.checked)}
                 />
               </label>
+              )}
               <p className="source-note">
                 {agency==="cwa"?`中央氣象署 · ${cwa?.issuedAt?tw(cwa.issuedAt)+" UTC+8":"讀取中"}`:`日本氣象廳 · ${jmaStatus}`}
                 <br />
