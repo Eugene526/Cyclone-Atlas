@@ -61,7 +61,8 @@ export default function Observatory() {
     [status, setStatus] = useState("連線至衛星資料源…"),
     [storms, setStorms] = useState<any[]>([]),
     [wind, setWind] = useState(true),
-    [forecast, setForecast] = useState(true),
+    [satelliteForecast, setSatelliteForecast] = useState(false),
+    [pathForecast, setPathForecast] = useState(true),
     [play, setPlay] = useState(false),
     [preloading, setPreloading] = useState(false),
     [hours, setHours] = useState(3),
@@ -204,6 +205,7 @@ export default function Observatory() {
         }],
       }
     : null;
+  const forecast = pathPrediction ? pathForecast : satelliteForecast;
   const displayedModels = [
     ...models
       .filter((m) => selected.includes(m.id))
@@ -291,7 +293,7 @@ export default function Observatory() {
           storms={agency==="jma"?storms:[]}
           wind={wind}
           forecast={forecast}
-          models={displayedModels}
+          models={forecast ? displayedModels : []}
           thermal={thermal}
           onThermal={d=>setThermal((previous:any)=>acceptThermal(previous,d))}
           onPoint={setPointInfo}
@@ -552,7 +554,7 @@ export default function Observatory() {
               <label className="toggle-row">
                 <span>
                   <i className="legend-dot gold" />
-                  {agency==="cwa"?"七級／十級風圈（現在與預報）":"烈風圈與暴風圈"}
+                  {agency==="cwa"?(forecast?"七級／十級風圈（現在與預報）":"目前七級／十級風圈"):"烈風圈與暴風圈"}
                 </span>
                 <input
                   type="checkbox"
@@ -568,7 +570,7 @@ export default function Observatory() {
                 <input
                   type="checkbox"
                   checked={forecast}
-                  onChange={(e) => setForecast(e.target.checked)}
+                  onChange={(e) => pathPrediction ? setPathForecast(e.target.checked) : setSatelliteForecast(e.target.checked)}
                 />
               </label>
               <p className="source-note">

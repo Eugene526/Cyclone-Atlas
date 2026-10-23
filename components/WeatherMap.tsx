@@ -520,9 +520,10 @@ export default function WeatherMap(p: {
         if (p.agency === "jma") {
           // Render JMA's official storm-warning boundary from its published arc and line segments.
           // Do not substitute uncertainty circles for wind radii or fill the warning region.
-          const warning = [...data].reverse().find((d: any) => d.advancedHours >= 0 &&
-            (d.stormWarningArea?.arc?.length || d.stormWarningArea?.line?.length),
-          )?.stormWarningArea;
+          const warning = p.forecast
+            ? [...data].reverse().find((d: any) => d.advancedHours >= 0 &&
+                (d.stormWarningArea?.arc?.length || d.stormWarningArea?.line?.length))?.stormWarningArea
+            : analysis.stormWarningArea;
           for (const arc of warning?.arc || []) {
             const [[lat, lon], radius, [start, end]] = arc;
             if (![lat, lon, radius, start, end].every(Number.isFinite) || radius <= 0) continue;
