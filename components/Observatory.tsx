@@ -60,7 +60,8 @@ export default function Observatory() {
     [center, setCenter] = useState([137, 22]),
     [status, setStatus] = useState("連線至衛星資料源…"),
     [storms, setStorms] = useState<any[]>([]),
-    [wind, setWind] = useState(true),
+    [satelliteWind, setSatelliteWind] = useState(false),
+    [pathWind, setPathWind] = useState(true),
     [satelliteForecast, setSatelliteForecast] = useState(false),
     [pathForecast, setPathForecast] = useState(true),
     [play, setPlay] = useState(false),
@@ -206,6 +207,7 @@ export default function Observatory() {
       }
     : null;
   const forecast = pathPrediction ? pathForecast : satelliteForecast;
+  const wind = pathPrediction ? pathWind : satelliteWind;
   const displayedModels = [
     ...models
       .filter((m) => selected.includes(m.id))
@@ -559,7 +561,7 @@ export default function Observatory() {
                 <input
                   type="checkbox"
                   checked={wind}
-                  onChange={(e) => setWind(e.target.checked)}
+                  onChange={(e) => pathPrediction ? setPathWind(e.target.checked) : setSatelliteWind(e.target.checked)}
                 />
               </label>
               <label className="toggle-row">

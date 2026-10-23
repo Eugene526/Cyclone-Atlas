@@ -1,5 +1,6 @@
 import {useEffect} from 'react';
 import {unwrapTrack} from '@/lib/track-geometry.mjs';
+import {intensityColor} from '@/lib/track-intensity';
 import VectorLayer from 'ol/layer/Vector';import VectorSource from 'ol/source/Vector';import Feature from 'ol/Feature';import {Point,LineString,Polygon} from 'ol/geom';import {fromLonLat} from 'ol/proj';import GeoJSON from 'ol/format/GeoJSON';import {Style,Stroke,Fill,Circle,Text} from 'ol/style';import {windRing} from '@/lib/cwa-typhoon.mjs';
 export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,forecast:boolean,history:boolean,showCurrent=true,showForecastTimestamp=false){
  useEffect(()=>{const map=mapRef.current;if(!map||!enabled||!data)return;const source=new VectorSource(),layer=new VectorLayer({source,zIndex:15});map.addLayer(layer);
@@ -7,7 +8,19 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  for(const s of data.storms||[]){
  const point=(p:any)=>fromLonLat([p.lon,p.lat]);
  const callout=(coord:number[],text:string,index:number)=>{const origin=fromLonLat(coord),pixel=map.getPixelFromCoordinate(origin);if(!pixel)return;const side=index%2===0?1:-1,anchor=map.getCoordinateFromPixel([pixel[0]+side*112,pixel[1]+(index%3===0?-34:34)]);if(!anchor)return;add(new LineString([origin,anchor]),'rgba(235,246,250,.9)');const label=new Feature(new Point(anchor));const makeStyle=(size:number)=>new Style({text:new Text({text,font:`700 ${size}px sans-serif`,textAlign:side>0?'left':'right',offsetX:side*5,fill:new Fill({color:'#f4fbff'}),stroke:new Stroke({color:'#10202a',width:size>12?5:3}),backgroundFill:new Fill({color:'rgba(9,25,36,.94)'}),backgroundStroke:new Stroke({color:'rgba(210,233,240,.86)',width:size>12?2:1}),padding:size>12?[8,11,8,11]:[4,6,4,6]})});label.set('exportStyle',makeStyle(25));label.setStyle(makeStyle(11));source.addFeature(label)};
- if(history&&s.history.length>1)add(new LineString(unwrapTrack(s.history).map((v:number[])=>fromLonLat(v))),'#63c5f2');
+ if(history&&s.history.length>1){
+  const coordinates=unwrapTrack(s.history).map((v:number[])=>fromLonLat(v));
+  for(let i=1;i<coordinates.length;i++){
+   const start=coordinates[i-1],end=coordinates[i],windA=s.history[i-1].windMs,windB=s.history[i].windMs;
+   for(let j=0;j<8;j++){
+    const lerp=(t:number)=>start.map((v:number,k:number)=>v+(end[k]-v)*t);
+    const speed=Number.isFinite(windA)&&Number.isFinite(windB)?windA+(windB-windA)*(j+.5)/8:windB??windA;
+    const line=add(new LineString([lerp(j/8),lerp((j+1)/8)]),intensityColor(speed));
+    line.setStyle(new Style({stroke:new Stroke({color:intensityColor(speed),width:2.8,lineCap:'round',lineJoin:'round'})}));
+    line.set('info',{kind:'cwa',name:s.name,historyTrack:true,historyPoints:s.history,issue:s.issue});
+   }
+  }
+ }
  if(forecast)add(new LineString(unwrapTrack([s.current,...s.forecast]).map((v:number[])=>fromLonLat(v))),'#ff8c78');
  if(forecast){const envelope=data.probabilityEnvelopes?.find((v:any)=>v.properties?.stormId===s.id);if(envelope){const fs=new GeoJSON().readFeatures({type:'FeatureCollection',features:[envelope]},{featureProjection:'EPSG:3857'});for(const f of fs){f.setStyle(new Style({stroke:new Stroke({color:'#dbe8f4',width:1.8,lineDash:[5,4]}),fill:new Fill({color:'rgba(219,232,244,.07)'})}));source.addFeature(f)}}}
  const points=[s.current,...(forecast?s.forecast:[])];
@@ -17,9 +30,8 @@ export function useCwaTracks(mapRef:any,data:any,enabled:boolean,wind:boolean,fo
  if(wind){for(const [key,color,fill] of [['r15','#ffdc55','rgba(255,217,72,.20)'],['r25','#ff626f','rgba(255,67,83,.24)']]){const ring=windRing(p,key);if(ring)add(new Polygon([ring.map((v:number[])=>fromLonLat(v))]),color,fill)}}
  if(forecast&&!current&&showForecastTimestamp&&p.time){const stamp=new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(p.time));callout([p.lon,p.lat],stamp,index)}
 
- if(!current||showCurrent){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:p,issue:s.issue});f.setStyle(new Style({image:new Circle({radius:current?6:4,fill:new Fill({color:current?'#ff9c7c':'#fff'}),stroke:new Stroke({color:'#10202f',width:2})}),text:current?new Text({text:s.name,offsetY:-20,font:'600 12px sans-serif',fill:new Fill({color:'#fff'}),stroke:new Stroke({color:'#0e1721',width:3})}):undefined}));source.addFeature(f)}
+ if(!current||showCurrent){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:p,issue:s.issue});f.setStyle(new Style({image:new Circle({radius:current?6:4,fill:new Fill({color:current?'#ff9c7c':'#b6eee1'}),stroke:new Stroke({color:'#10202f',width:2})}),text:current?new Text({text:s.name,offsetY:-20,font:'600 12px sans-serif',fill:new Fill({color:'#fff'}),stroke:new Stroke({color:'#0e1721',width:3})}):undefined}));source.addFeature(f)}
  }
- if(history)for(const p of s.history.slice(0,-1)){const f=new Feature(new Point(point(p)));f.set('info',{kind:'cwa',name:s.name,point:{...p,history:true},issue:s.issue});f.setStyle(new Style({image:new Circle({radius:3,fill:new Fill({color:'#e9c775'}),stroke:new Stroke({color:'#172332',width:1})})}));source.addFeature(f)}
  }
  return()=>{map.removeLayer(layer)};
  },[mapRef,data,enabled,wind,forecast,history,showCurrent,showForecastTimestamp]);

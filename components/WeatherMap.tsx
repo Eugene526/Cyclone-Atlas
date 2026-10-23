@@ -28,6 +28,7 @@ import { defaults as controls } from "ol/control";
 import { stamp, lut } from "@/lib/satellite";
 import { imagery } from "@/lib/imagery";
 import { unwrapTrack } from "@/lib/track-geometry.mjs";
+import { intensityColor } from "@/lib/track-intensity";
 import { unByKey } from "ol/Observable";
 import "ol/ol.css";
 proj4.defs(
@@ -141,6 +142,23 @@ export default function WeatherMap(p: {
         width: size[0],
         height: size[1],
       };
+      if (chosen.historyTrack) {
+        selection.current!.clear();
+        selectedTrack.current = null;
+        for (const pt of chosen.historyPoints || []) {
+          const longitude = pt.lon ?? pt.center?.[1];
+          const latitude = pt.lat ?? pt.center?.[0];
+          if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) continue;
+          const dot = new Feature(new Point(fromLonLat([longitude, latitude])));
+          const spec = chosen.specifications?.find((item: any) => item.validtime?.UTC === pt.validtime?.UTC);
+          const info = { kind: chosen.kind, name: chosen.name, point: chosen.kind === "cwa" ? { ...pt, history: true } : pt, spec, issue: chosen.issue };
+          dot.set("info", info);
+          dot.setStyle(new Style({ image: new CircleStyle({ radius: 5, fill: new Fill({ color: intensityColor(pt.windMs ?? Number(spec?.maximumWind?.sustained?.["m/s"])) }), stroke: new Stroke({ color: "#10212e", width: 1.5 }) }) }));
+          selection.current!.addFeature(dot);
+        }
+        cb.current.onPoint(null);
+        return;
+      }
       if (chosen.track) {
         selectedTrack.current = chosen;
         const track = chosen.track;
@@ -313,23 +331,26 @@ export default function WeatherMap(p: {
             const logo = new Image();
             logo.src = "/images/typhoon-observatory-logo.png";
             await logo.decode();
-            const logoBackground = ctx.createLinearGradient(38, 2074, 298, 2154);
+            const logoX = c.width - 306;
+            const logoY = 30;
+            const logoBackground = ctx.createLinearGradient(logoX + 8, logoY, logoX + 268, logoY + 80);
             logoBackground.addColorStop(0, "#f4fbff");
             logoBackground.addColorStop(1, "#d9edf5");
             ctx.fillStyle = logoBackground;
             ctx.beginPath();
-            ctx.roundRect(30, 2074, 276, 80, 9);
+            ctx.roundRect(logoX, logoY, 276, 80, 9);
             ctx.fill();
             ctx.strokeStyle = "#b6e3e4";
             ctx.lineWidth = 1;
             ctx.stroke();
-            ctx.drawImage(logo, 48, 2074, 240, 80);
+            ctx.drawImage(logo, logoX + 18, logoY, 240, 80);
             ctx.fillStyle = "white";
             ctx.font = "28px sans-serif";
             ctx.fillText(
               cb.current.pathPrediction ? `颱風預報 · ${exportStormLabel(cb.current)} · 預報圖日期 ${new Date(cb.current.time).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"})} UTC+8` : `CYCLONE ATLAS · HIMAWARI · ${cb.current.time} · ${cb.current.mode.toUpperCase()} · JMA / NICT`,
-              325,
+              40,
               2126,
+              c.width - 80,
             );
             const a = document.createElement("a");
             a.download = cb.current.pathPrediction ? "cyclone-atlas-forecast.png" : "cyclone-atlas.png";
@@ -503,7 +524,20 @@ export default function WeatherMap(p: {
       });
       s.addFeature(marker);
       const history=data.filter((d:any)=>d.center&&d.advancedHours<0);
-      if(p.cwaHistory&&history.length>1)add(new LineString(unwrapTrack(history.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v))),"#63c5f2",1.8);
+      if(p.cwaHistory&&(p.agency==="jma"||p.cwaError)&&history.length>0){
+        const entries=[...history,analysis];
+        const coordinates=unwrapTrack(entries.map((d:any)=>({lon:d.center[1],lat:d.center[0]}))).map((v:number[])=>fromLonLat(v));
+        const speed=(entry:any)=>Number(storm.specifications?.find((spec:any)=>spec.validtime?.UTC===entry.validtime?.UTC)?.maximumWind?.sustained?.["m/s"]);
+        for(let i=1;i<coordinates.length;i++){
+          const start=coordinates[i-1],end=coordinates[i],a=speed(entries[i-1]),b=speed(entries[i]);
+          for(let j=0;j<8;j++){
+            const lerp=(t:number)=>start.map((v:number,k:number)=>v+(end[k]-v)*t);
+            const value=Number.isFinite(a)&&Number.isFinite(b)?a+(b-a)*(j+.5)/8:Number.isFinite(b)?b:a;
+            const line=add(new LineString([lerp(j/8),lerp((j+1)/8)]),intensityColor(value),2.8);
+            line.set("info",{kind:"jma",name:title?.name?.en,historyTrack:true,historyPoints:entries,specifications:storm.specifications,issue:title?.issue?.UTC});
+          }
+        }
+      }
       if(p.showCurrent===false){s.removeFeature(marker)}
       if (p.wind) {
         const gale = analysis.galeWarningArea;
@@ -595,7 +629,7 @@ export default function WeatherMap(p: {
             new Style({
               image: new CircleStyle({
                 radius: 4,
-                fill: new Fill({ color: "#fff" }),
+                fill: new Fill({ color: "#b6eee1" }),
                 stroke: new Stroke({ color: "#192633", width: 1.5 }),
               }),
             }),
